@@ -53,7 +53,7 @@ public:
     {
         Stats()             { clear(); }
         void clear()        { memset(this, 0, sizeof(Stats)); }
-        void print() const  { printf("Tree stats: [bfactor=%d] %d nodes (%d+%d), %.2f SAHCost, %.1f children/inner, %.1f tris/leaf\n", branchingFactor,numLeafNodes+numInnerNodes, numLeafNodes,numInnerNodes, SAHCost, 1.f*numChildNodes/max(numInnerNodes,1), 1.f*numTris/max(numLeafNodes,1)); }
+		void print() const  { printf("Tree stats: [bfactor=%d] %d nodes (%d+%d), %.2f SAHCost, %.1f children/inner, %.1f tris/leaf, maxLeafDepth=%d minLeafDepth=%d mixedInnerNodes=%d leafInnerNodes=%d innerInnerNodes=%d\n", branchingFactor, numLeafNodes + numInnerNodes, numLeafNodes, numInnerNodes, SAHCost, 1.f*numChildNodes / max(numInnerNodes, 1), 1.f*numTris / max(numLeafNodes, 1), maxLeafDepth, minLeafDepth, mixedInnerNodes, leafInnerNodes, innerInnerNodes); }
 
         F32     SAHCost;
         S32     branchingFactor;
@@ -61,6 +61,11 @@ public:
         S32     numLeafNodes;
         S32     numChildNodes;
         S32     numTris;
+		S32     maxLeafDepth;
+		S32     minLeafDepth;
+		S32     mixedInnerNodes;
+		S32     leafInnerNodes;
+		S32     innerInnerNodes;
     };
 
     struct BuildParams

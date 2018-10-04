@@ -37,12 +37,58 @@ int BVHNode::getSubtreeSize(BVH_STAT stat) const
     switch(stat)
     {
         default: FW_ASSERT(0);  // unknown mode
-        case BVH_STAT_NODE_COUNT:      cnt = 1; break;
-        case BVH_STAT_LEAF_COUNT:      cnt = isLeaf() ? 1 : 0; break;
-        case BVH_STAT_INNER_COUNT:     cnt = isLeaf() ? 0 : 1; break;
-        case BVH_STAT_TRIANGLE_COUNT:  cnt = isLeaf() ? reinterpret_cast<const LeafNode*>(this)->getNumTriangles() : 0; break;
-        case BVH_STAT_CHILDNODE_COUNT: cnt = getNumChildNodes(); break;
-    }
+        case BVH_STAT_NODE_COUNT:        cnt = 1; break;
+        case BVH_STAT_LEAF_COUNT:        cnt = isLeaf() ? 1 : 0; break;
+        case BVH_STAT_INNER_COUNT:       cnt = isLeaf() ? 0 : 1; break;
+        case BVH_STAT_TRIANGLE_COUNT:    cnt = isLeaf() ? reinterpret_cast<const LeafNode*>(this)->getNumTriangles() : 0; break;
+        case BVH_STAT_CHILDNODE_COUNT:   cnt = getNumChildNodes(); break;
+		case BVH_STAT_MAX_LEAF_DEPTH:
+			cnt = 0;
+			if (!isLeaf()) {
+				for (int i = 0; i<getNumChildNodes(); i++) {
+					S32 x = getChildNode(i)->getSubtreeSize(stat) + 1;
+					if (x > cnt) cnt = x;
+				}
+			}
+			return cnt;
+		case BVH_STAT_MIN_LEAF_DEPTH:
+			if (!isLeaf()) {
+				cnt = 0x7fffffff;
+				for (int i = 0; i<getNumChildNodes(); i++) {
+					S32 x = getChildNode(i)->getSubtreeSize(stat) + 1;
+					if (x < cnt) cnt = x;
+				}
+			} else
+				cnt = 0;
+			return cnt;
+		case BVH_STAT_MIXED_INNER_COUNT:
+			if (isLeaf()) return 0;
+			{
+				bool cl = getChildNode(0)->isLeaf() ? true : false;
+				cnt = 0;
+				for (int i = 1; i < getNumChildNodes(); i++) {
+					if (cl != (getChildNode(i)->isLeaf() ? true : false))
+						cnt = 1;
+				}
+			}
+			break;
+		case BVH_STAT_LEAF_INNER_COUNT:
+			if (isLeaf()) return 0;
+			cnt = 1;
+			for (int i = 0; i<getNumChildNodes(); i++) {
+				if (!getChildNode(i)->isLeaf())
+					cnt = 0;
+			}
+			break;
+		case BVH_STAT_INNER_INNER_COUNT:
+			if (isLeaf()) return 0;
+			cnt = 1;
+			for (int i = 0; i<getNumChildNodes(); i++) {
+				if (getChildNode(i)->isLeaf())
+					cnt = 0;
+			}
+			break;
+	}
 
     if(!isLeaf())
     {

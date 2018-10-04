@@ -353,8 +353,8 @@ String Window::showFileDialog(const String& title, bool save, const String& filt
             all += ext;
         }
 
-        String title = filters.substring(colon + 1, comma);
-        filterStr.appendf("%s Files (%s)\n%s\n", title.getPtr(), all.getPtr(), all.getPtr());
+        String titlel = filters.substring(colon + 1, comma);
+        filterStr.appendf("%s Files (%s)\n%s\n", titlel.getPtr(), all.getPtr(), all.getPtr());
         numFilters++;
         start = comma + 1;
     }

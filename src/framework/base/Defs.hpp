@@ -223,10 +223,10 @@ FW_SPECIALIZE_MINMAX(, F64, ::fmin(a, b), ::fmax(a, b))
 #ifndef FW_DO_NOT_OVERRIDE_NEW_DELETE
 #if !FW_CUDA
 
-inline void*    operator new        (size_t size)       { return FW::malloc(size); }
-inline void*    operator new[]      (size_t size)       { return FW::malloc(size); }
-inline void     operator delete     (void* ptr)         { return FW::free(ptr); }
-inline void     operator delete[]   (void* ptr)         { return FW::free(ptr); }
+void*    operator new        (size_t size);
+void*    operator new[]      (size_t size);
+void     operator delete     (void* ptr)  ;
+void     operator delete[]   (void* ptr)  ;
 
 #endif
 #endif // FW_DO_NOT_OVERRIDE_NEW_DELETE

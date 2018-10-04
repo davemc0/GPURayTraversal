@@ -41,7 +41,12 @@ enum BVH_STAT
     BVH_STAT_INNER_COUNT,
     BVH_STAT_LEAF_COUNT,
     BVH_STAT_TRIANGLE_COUNT,
-    BVH_STAT_CHILDNODE_COUNT,
+	BVH_STAT_CHILDNODE_COUNT,
+	BVH_STAT_MAX_LEAF_DEPTH,
+	BVH_STAT_MIN_LEAF_DEPTH,
+	BVH_STAT_MIXED_INNER_COUNT, // How many interior nodes have one leaf child and one interior child
+	BVH_STAT_LEAF_INNER_COUNT, // How many interior nodes have two leaf children
+	BVH_STAT_INNER_INNER_COUNT, // How many interior nodes have two interior children
 };
 
 class BVHNode

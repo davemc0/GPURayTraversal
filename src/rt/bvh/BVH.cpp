@@ -58,7 +58,12 @@ BVH::BVH(Scene* scene, const Platform& platform, const BuildParams& params)
         params.stats->numInnerNodes     = m_root->getSubtreeSize(BVH_STAT_INNER_COUNT);
         params.stats->numTris           = m_root->getSubtreeSize(BVH_STAT_TRIANGLE_COUNT);
         params.stats->numChildNodes     = m_root->getSubtreeSize(BVH_STAT_CHILDNODE_COUNT);
-    }
+		params.stats->maxLeafDepth	    = m_root->getSubtreeSize(BVH_STAT_MAX_LEAF_DEPTH);
+		params.stats->minLeafDepth	    = m_root->getSubtreeSize(BVH_STAT_MIN_LEAF_DEPTH);
+		params.stats->mixedInnerNodes   = m_root->getSubtreeSize(BVH_STAT_MIXED_INNER_COUNT);
+		params.stats->leafInnerNodes    = m_root->getSubtreeSize(BVH_STAT_LEAF_INNER_COUNT);
+		params.stats->innerInnerNodes   = m_root->getSubtreeSize(BVH_STAT_INNER_INNER_COUNT);
+	}
 }
 
 static S32 currentTreelet;

@@ -660,9 +660,9 @@ void Buffer::cudaAlloc(CUdeviceptr& cudaPtr, CUdeviceptr& cudaBase, bool& cudaGL
             CudaModule::checkError("cuGLRegisterBufferObject", cuGLRegisterBufferObject(glBuffer));
             cudaGLReg = true;
         }
-        CUsize_t size;
+        CUsize_t csize;
         FW_ASSERT(align == 1);
-        CudaModule::checkError("cuGLMapBufferObject", cuGLMapBufferObject(&cudaBase, &size, glBuffer));
+        CudaModule::checkError("cuGLMapBufferObject", cuGLMapBufferObject(&cudaBase, &csize, glBuffer));
         cudaPtr = cudaBase;
     }
 }

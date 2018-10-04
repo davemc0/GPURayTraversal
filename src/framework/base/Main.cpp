@@ -33,10 +33,11 @@
 #include "gpu/CudaModule.hpp"
 #include "gpu/CudaCompiler.hpp"
 
+#include <cstdio>
 #include <crtdbg.h>
 #include <conio.h>
 
-using namespace FW;
+// using namespace FW;
 
 //------------------------------------------------------------------------
 
@@ -75,20 +76,20 @@ int main(int argc, char* argv[])
 
     // Initialize the application.
 
-    Thread::getCurrent();
+	FW::Thread::getCurrent();
     FW::init();
-    failIfError();
+	FW::failIfError();
 
     // Message loop.
 
-    while (Window::getNumOpen())
+    while (FW::Window::getNumOpen())
     {
         // Wait for a message.
 
         MSG msg;
         if (!PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
         {
-            Window::realizeAll();
+			FW::Window::realizeAll();
             GetMessage(&msg, NULL, 0, 0);
         }
 
@@ -99,9 +100,9 @@ int main(int argc, char* argv[])
 
         // Nesting level was not restored => something fishy is going on.
 
-        if (incNestingLevel(0) != 0)
+        if (FW::incNestingLevel(0) != 0)
         {
-            fail(
+			FW::fail(
                 "Unhandled access violation detected!\n"
                 "\n"
                 "To get a stack trace, try the following:\n"
@@ -114,19 +115,19 @@ int main(int argc, char* argv[])
 
     // Clean up.
 
-    failIfError();
-    CudaCompiler::staticDeinit();
-    CudaModule::staticDeinit();
-    GLContext::staticDeinit();
-    Window::staticDeinit();
-    deinitDLLImports();
-    profileEnd(false);
-    failIfError();
+	FW::failIfError();
+    FW::CudaCompiler::staticDeinit();
+    FW::CudaModule::staticDeinit();
+    FW::GLContext::staticDeinit();
+    FW::Window::staticDeinit();
+    FW::deinitDLLImports();
+    FW::profileEnd(false);
+	FW::failIfError();
 
-    while (hasLogFile())
-        popLogFile();
+    while (FW::hasLogFile())
+		FW::popLogFile();
 
-    delete Thread::getCurrent();
+    delete FW::Thread::getCurrent();
 
     // Dump memory leaks.
 
@@ -139,7 +140,7 @@ int main(int argc, char* argv[])
     }
 #endif
 
-    return exitCode;
+    return FW::exitCode;
 }
 
 //------------------------------------------------------------------------

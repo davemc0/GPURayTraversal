@@ -555,9 +555,11 @@ void FW::exportWavefrontMesh(BufferedOutputStream& stream, const MeshBase* mesh,
 
     String dirName = fileName.getDirName();
     String baseName = fileName.getFileName();
-    int idx = baseName.indexOf('.');
-    if (idx != -1)
-        baseName = baseName.substring(0, idx);
+	{
+		int idx = baseName.indexOf('.');
+		if (idx != -1)
+			baseName = baseName.substring(0, idx);
+	}
 
     // Write OBJ file.
 

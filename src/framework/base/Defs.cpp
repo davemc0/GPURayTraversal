@@ -661,3 +661,14 @@ void FW::profileEnd(bool printResults)
 }
 
 //------------------------------------------------------------------------
+
+#ifndef FW_DO_NOT_OVERRIDE_NEW_DELETE
+#if !FW_CUDA
+
+void*    operator new        (size_t size) { return FW::malloc(size); }
+void*    operator new[](size_t size) { return FW::malloc(size); }
+void     operator delete     (void* ptr) { return FW::free(ptr); }
+void     operator delete[](void* ptr) { return FW::free(ptr); }
+
+#endif
+#endif // FW_DO_NOT_OVERRIDE_NEW_DELETE

@@ -1,5 +1,8 @@
 // Need splits to be on a global grid so we can express them exactly as child nodes
 
+#include "bvhcmpr/CmpNode.hpp"
+
+
 #if 0
 
 #include "Math/MiscMath.h"

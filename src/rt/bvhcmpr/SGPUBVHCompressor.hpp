@@ -1,7 +1,9 @@
 
 #pragma once
 
-#include <bvh/BVH.hpp>
+#include "bvh/BVH.hpp"
+#include "bvhcmpr/CmpNode.hpp"
+#include "base/Timer.hpp"
 
 // Pass in a BVH and do this:
 // Make treelets of branching factor N
@@ -10,24 +12,29 @@
 // Decompress each treelet
 // Ray trace it
 
-class SGPUBVHCompressor
+namespace FW
 {
 
-public:
-	SGPUBVHCompressor(BVH& bvh, const BVH::BuildParams& params);
-	~SGPUBVHCompressor(void);
+    class SGPUBVHCompressor
+    {
 
-	BVHNode*                run(void);
+    public:
+        SGPUBVHCompressor(BVH& bvh, const BVH::BuildParams& params);
+        ~SGPUBVHCompressor(void);
 
-private:
-	SGPUBVHCompressor(const SGPUBVHCompressor&); // forbidden
-	SGPUBVHCompressor&        operator=           (const SGPUBVHCompressor&); // forbidden
+        CmpNode*                run();
+        BVHNode*                unrun();
 
-private:
-	BVH&                    m_bvh;
-	const Platform&         m_platform;
-	const BVH::BuildParams& m_params;
+    private:
+        SGPUBVHCompressor(const SGPUBVHCompressor&); // forbidden
+        SGPUBVHCompressor& operator=(const SGPUBVHCompressor&); // forbidden
 
-	Timer                   m_progressTimer;
+    private:
+        BVH&                    m_bvh;
+        const Platform&         m_platform;
+        const BVH::BuildParams& m_params;
+
+        Timer                   m_progressTimer;
+    };
 
 };

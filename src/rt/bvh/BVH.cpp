@@ -27,6 +27,10 @@
 
 #include "bvh/BVH.hpp"
 #include "bvh/SplitBVHBuilder.hpp"
+#include "bvhcmpr/Refine.hpp"
+
+#include <bitset>
+#include <iostream>
 
 using namespace FW;
 
@@ -39,20 +43,41 @@ BVH::BVH(Scene* scene, const Platform& platform, const BuildParams& params)
     if (params.enablePrints)
         printf("BVH builder: %d tris, %d vertices\n", scene->getNumTriangles(), scene->getNumVertices());
 
+	// Have one prim per leaf in SBVH, then refine it later
+	int oldMinLeafSize = m_platform.getMinLeafSize();
+	int oldMaxLeafSize = m_platform.getMaxLeafSize();
+	m_platform.setLeafPreferences(1, 1);
+
     m_root = SplitBVHBuilder(*this, params).run();
 
-    if (params.enablePrints)
+	m_platform.setLeafPreferences(oldMinLeafSize, oldMaxLeafSize);
+
+#if 0
+	// XXX Prune Tree
+	m_root->computeSubtreeSAHValues(m_platform, m_root->getArea());
+	while (dynamic_cast<InnerNode*>(m_root)->m_children[0]->m_tris >= 3)
+		m_root = dynamic_cast<InnerNode*>(m_root)->m_children[0];
+	m_root->computeSubtreeSAHValues(m_platform, m_root->getArea());
+
+	printTree(m_root);
+#endif
+
+	if (params.enablePrints)
         printf("BVH: Scene bounds: (%.1f,%.1f,%.1f) - (%.1f,%.1f,%.1f)\n", m_root->m_bounds.min().x, m_root->m_bounds.min().y, m_root->m_bounds.min().z,
-                                                                           m_root->m_bounds.max().x, m_root->m_bounds.max().y, m_root->m_bounds.max().z);
+        m_root->m_bounds.max().x, m_root->m_bounds.max().y, m_root->m_bounds.max().z);
 
-    float sah = 0.f;
-    m_root->computeSubtreeProbabilities(m_platform, 1.f, sah);
+    m_root->computeSubtreeSAHValues(m_platform, m_root->getArea());
     if (params.enablePrints)
-        printf("top-down sah: %.2f\n", sah);
+        printf("top-down sah: %.2f\n", m_root->m_sah);
 
-    if(params.stats)
+	Refine::RefineParams rparams;
+	Refine(*this, params, rparams).run(); // Must properly compute SAH, etc.
+
+	// exit(1); // XXX
+
+	if (params.stats)
     {
-        params.stats->SAHCost           = sah;
+        params.stats->SAHCost           = m_root->m_sah;
         params.stats->branchingFactor   = 2;
         params.stats->numLeafNodes      = m_root->getSubtreeSize(BVH_STAT_LEAF_COUNT);
         params.stats->numInnerNodes     = m_root->getSubtreeSize(BVH_STAT_INNER_COUNT);
@@ -165,4 +190,21 @@ void BVH::traceRecursive(BVHNode* node, Ray& ray, RayResult& result,bool needClo
         if(intersect1)
             traceRecursive(child1,ray,result,needClosestHit,stats);
     }
+}
+
+void BVH::printTree(BVHNode* node, int level)
+{
+	for (int e = 0; e < level; e++)
+		printf(" ");
+	printf("0x%08x: prob=%f area=%f sah=%f tris=%d froz=%d ", (U64)node, node->m_probability, node->getArea(), node->m_sah, node->m_tris, node->m_frozen);
+	if (node->isLeaf()) {
+		LeafNode* l = dynamic_cast<LeafNode*>(node);
+		printf("L: %d %d\n", l->m_lo, l->m_hi);
+	}
+	else {
+		InnerNode* i = dynamic_cast<InnerNode*>(node);
+		printf("I:0x%08x 0x%08x\n", i->getChildNode(0), i->getChildNode(1));
+		printTree(i->getChildNode(0), level + 1);
+		printTree(i->getChildNode(1), level + 1);
+	}
 }

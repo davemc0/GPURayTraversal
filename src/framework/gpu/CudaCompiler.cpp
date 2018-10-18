@@ -356,15 +356,20 @@ void CudaCompiler::staticInit(void)
     String vsBinPath;
     for (int i = 0; i < vsBinList.getSize(); i++)
     {
-        if (vsBinList[i].getLength() && fileExists(vsBinList[i] + "\\vcvars32.bat"))
-        {
-            vsBinPath = vsBinList[i];
-            break;
-        }
-    }
+		if (vsBinList[i].getLength() && fileExists(vsBinList[i] + "\\cl.exe"))
+		{
+			vsBinPath = vsBinList[i];
+			break;
+		}
+		if (vsBinList[i].getLength() && fileExists(vsBinList[i] + "\\vcvars32.bat"))
+		{
+			vsBinPath = vsBinList[i];
+			break;
+		}
+	}
 
     if (!vsBinPath.getLength())
-        fail("Unable to detect Visual Studio binary path!\nPlease run VCVARS32.BAT.");
+        fail("Need cl.exe in the path. Run VCVARS32.BAT.");
 
     // Find CUDA include path.
 
@@ -388,7 +393,7 @@ void CudaCompiler::staticInit(void)
     if (!cudaIncPath.getLength())
         fail("Unable to detect CUDA Toolkit include path!\nPlease set CUDA_INC_PATH environment variable.");
 
-    // Find Visual Studio include path.
+    // Find Visual Studio include path.	
 
     Array<String> vsIncList;
     vsIncList.add(vsBinPath + "\\..\\INCLUDE");
@@ -407,7 +412,7 @@ void CudaCompiler::staticInit(void)
     }
 
     if (!vsIncPath.getLength())
-        fail("Unable to detect Visual Studio include path!\nPlease run VCVARS32.BAT.");
+        fail("Need the INCLUDE environment variable from VCVARS32.BAT.");
 
     // Show paths.
 

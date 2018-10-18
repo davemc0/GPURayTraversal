@@ -52,7 +52,7 @@ enum BVH_STAT
 class BVHNode
 {
 public:
-    BVHNode() : m_probability(1.f),m_parentProbability(1.f),m_treelet(-1),m_index(-1) {}
+    BVHNode() : m_probability(1.f),m_parentProbability(1.f),m_treelet(-1),m_index(-1),m_sah(0),m_tris(0),m_frozen(0) {}
     virtual bool        isLeaf() const = 0;
     virtual S32         getNumChildNodes() const = 0;
     virtual BVHNode*    getChildNode(S32 i) const   = 0;
@@ -65,14 +65,16 @@ public:
     // These are somewhat experimental, for some specific test and may be invalid...
     float       m_probability;          // probability of coming here (widebvh uses this)
     float       m_parentProbability;    // probability of coming to parent (widebvh uses this)
+    float       m_sah;                  // SAH cost of this node and all child nodes
 
     int         m_treelet;              // for queuing tests (qmachine uses this)
     int         m_index;                // in linearized tree (qmachine uses this)
+	int         m_tris;                 // number of triangles in the subtree (Refine uses this)
+	int         m_frozen;               // How many passes since this subtree has had improvement
 
     // Subtree functions
     int     getSubtreeSize(BVH_STAT stat=BVH_STAT_NODE_COUNT) const;
-    void    computeSubtreeProbabilities(const Platform& p, float parentProbability, float& sah);
-    float   computeSubtreeSAHCost(const Platform& p) const;     // NOTE: assumes valid probabilities
+    void    computeSubtreeSAHValues(const Platform& p, const float rootArea); // Fills in m_probability, m_sah, m_tris
     void    deleteSubtree();
 
     void    assignIndicesDepthFirst  (S32 index=0, bool includeLeafNodes=true);

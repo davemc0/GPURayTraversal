@@ -1,25 +1,35 @@
 
-SGPUBVHCompressor::SGPUBVHCompressor(BVH& bvh, const BVH::BuildParams& params)
-	: m_bvh(bvh),
-	m_platform(bvh.getPlatform()),
-	m_params(params),
-	m_minOverlap(0.0f),
-	m_sortDim(-1)
-{
-}
+#include "bvhcmpr/SGPUBVHCompressor.hpp"
 
-//------------------------------------------------------------------------
-
-SGPUBVHCompressor::~SGPUBVHCompressor(void)
-{
-}
-
-//------------------------------------------------------------------------
-
-BVHNode* SGPUBVHCompressor::run(void)
+namespace FW
 {
 
-}
+    SGPUBVHCompressor::SGPUBVHCompressor(BVH& bvh, const BVH::BuildParams& params)
+        : m_bvh(bvh),
+        m_platform(bvh.getPlatform()),
+        m_params(params)
+    {
+    }
+
+    //------------------------------------------------------------------------
+
+    SGPUBVHCompressor::~SGPUBVHCompressor(void)
+    {
+    }
+
+    //------------------------------------------------------------------------
+
+    CmpNode* SGPUBVHCompressor::run()
+    {
+        return NULL;
+    }
+
+    BVHNode* SGPUBVHCompressor::unrun()
+    {
+        return NULL;
+    }
+
+};
 
 #if 0
 

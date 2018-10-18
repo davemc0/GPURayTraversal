@@ -78,7 +78,7 @@ BVHNode* SplitBVHBuilder::run(void)
     // Build recursively.
 
     BVHNode* root = buildNode(rootSpec, 0, 0.0f, 1.0f);
-    m_bvh.getTriIndices().compact();
+    m_bvh.getTriIndices().compact(); // Delete the BVH's m_triIndices
 
     // Done.
 
@@ -123,6 +123,7 @@ BVHNode* SplitBVHBuilder::buildNode(NodeSpec spec, int level, F32 progressStart,
     }
 
     // Remove degenerates.
+    // XXX I think this is only necessary at the root. Below that the splitter should be able to not make degenerates.
     {
         int firstRef = m_refStack.getSize() - spec.numRef;
         for (int i = m_refStack.getSize() - 1; i >= firstRef; i--)
@@ -136,14 +137,18 @@ BVHNode* SplitBVHBuilder::buildNode(NodeSpec spec, int level, F32 progressStart,
 
     // Small enough or too deep => create leaf.
 
-    if (spec.numRef <= m_platform.getMinLeafSize() || level >= MaxDepth)
+    if (spec.numRef <= m_platform.getMinLeafSize() || level >= MaxDepth) {
+        m_params.stats->forcedLeaves++;
+        //printf("spec.numRef=%d m_platform.getMinLeafSize()=%d\n", spec.numRef, m_platform.getMinLeafSize());
         return createLeaf(spec);
+    }
 
     // Find split candidates.
 
     F32 area = spec.bounds.area();
     F32 leafSAH = area * m_platform.getTriangleCost(spec.numRef);
-    F32 nodeSAH = area * m_platform.getNodeCost(2);
+
+    F32 nodeSAH = area * m_platform.getNodeCost(2); // num children
     ObjectSplit object = findObjectSplit(spec, nodeSAH);
 
     SpatialSplit spatial;
@@ -182,6 +187,8 @@ BVHNode* SplitBVHBuilder::buildNode(NodeSpec spec, int level, F32 progressStart,
 
 BVHNode* SplitBVHBuilder::createLeaf(const NodeSpec& spec)
 {
+	// Remove the node's triangles from refStack and add them to tris
+	//printf("%d", spec.numRef);
     Array<S32>& tris = m_bvh.getTriIndices();
     for (int i = 0; i < spec.numRef; i++)
         tris.add(m_refStack.removeLast().triIdx);

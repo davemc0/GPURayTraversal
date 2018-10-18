@@ -129,6 +129,8 @@ CudaBVH* Renderer::getCudaBVH(void)
 
     // Cache file exists => import.
 
+#if 0
+	// Disable loading from cache so we can always build and experiment with BVH builds
     if (!hasError())
     {
         File file(cacheFileName, File::Read);
@@ -139,7 +141,7 @@ CudaBVH* Renderer::getCudaBVH(void)
         }
         clearError();
     }
-
+#endif
     // Display status.
 
     printf("\nBuilding BVH...\nThis will take a while.\n");

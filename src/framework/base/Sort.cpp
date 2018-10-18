@@ -214,26 +214,26 @@ void FW::sort(void* data, int start, int end, SortCompareFunc compareFunc, SortS
 
     if (!multicore || end - start < MULTICORE_MIN_SIZE)
     {
-    qsort(start, end, data, compareFunc, swapFunc);
-}
+        qsort(start, end, data, compareFunc, swapFunc);
+    }
 
     // Multicore.
 
     else
-{
-    TaskSpec* spec = new TaskSpec;
-    spec->low = start;
-    spec->high = end;
-    spec->data = data;
-    spec->compareFunc = compareFunc;
-    spec->swapFunc = swapFunc;
+    {
+        TaskSpec* spec = new TaskSpec;
+        spec->low = start;
+        spec->high = end;
+        spec->data = data;
+        spec->compareFunc = compareFunc;
+        spec->swapFunc = swapFunc;
 
-    MulticoreLauncher launcher;
-    MulticoreLauncher::Task task;
-    task.launcher = &launcher;
-    task.data = spec;
-    qsortMulticore(task);
-}
+        MulticoreLauncher launcher;
+        MulticoreLauncher::Task task;
+        task.launcher = &launcher;
+        task.data = spec;
+        qsortMulticore(task);
+    }
 }
 
 //------------------------------------------------------------------------

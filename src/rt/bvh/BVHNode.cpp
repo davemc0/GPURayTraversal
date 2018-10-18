@@ -108,34 +108,21 @@ void BVHNode::deleteSubtree()
     delete this;
 }
 
-
-void BVHNode::computeSubtreeProbabilities(const Platform& p,float probability, float& sah)
+// SAH = node cost * root cond prob + SAH of direct children (which includes all descendants)
+void BVHNode::computeSubtreeSAHValues(const Platform& p, const float rootArea)
 {
-    sah += probability * p.getCost(this->getNumChildNodes(),this->getNumTriangles());
+	m_probability = m_bounds.area() / rootArea;
+	m_tris = getNumTriangles();
+	float C = p.getCost(getNumChildNodes(), m_tris); // Work cost of just this node
+	m_sah = m_probability * C;
 
-    m_probability = probability;
-
-    for(int i=0;i<getNumChildNodes();i++)
-    {
-        BVHNode* child = getChildNode(i);
-        child->m_parentProbability = probability;
-        float childProbability = 0.0f;
-        if (probability > 0.0f)
-            childProbability = probability * child->m_bounds.area()/this->m_bounds.area();
-        child->computeSubtreeProbabilities(p, childProbability, sah );
+    for (int i = 0; i < getNumChildNodes(); i++) {
+		BVHNode* ch = getChildNode(i);
+		ch->m_parentProbability = m_probability;
+		ch->computeSubtreeSAHValues(p, rootArea);
+		m_sah += ch->m_sah;
+		m_tris += ch->m_tris;
     }
-}
-
-
-// TODO: requires valid probabilities...
-float BVHNode::computeSubtreeSAHCost(const Platform& p) const
-{
-    float SAH = m_probability * p.getCost( getNumChildNodes(),getNumTriangles());
-
-    for(int i=0;i<getNumChildNodes();i++)
-        SAH += getChildNode(i)->computeSubtreeSAHCost(p);
-
-    return SAH;
 }
 
 //-------------------------------------------------------------
@@ -146,7 +133,7 @@ void assignIndicesDepthFirstRecursive( BVHNode* node, S32& index, bool includeLe
         return;
 
     node->m_index = index++;
-    for(int i=0;i<node->getNumChildNodes();i++)
+    for (int i = 0; i < node->getNumChildNodes(); i++)
         assignIndicesDepthFirstRecursive(node->getChildNode(i), index, includeLeafNodes);
 }
 
@@ -183,3 +170,4 @@ void BVHNode::assignIndicesBreadthFirst( S32 index, bool includeLeafNodes )
 
 
 } //
+

@@ -2,55 +2,60 @@
 
 #pragma once
 
-const int MAX_LEAVES = 32;
-const int MAX_INTR_LVL = MAX_LEAVES / 2 / 2; // How many internal node pairs on the widest layer of a compressed treelet
-const int MAX_LEAF_PAIRS = MAX_LEAVES / 2;
-
-// The parameters that represent a floating point number format
-struct FloatRep
+namespace FW
 {
-	int signbits;
-	int expobits;
-	int mantbits;
-	int excess;
-	bool zeroone;
-};
 
-// All the parameters of the compressed representation
-struct CmpNodeParams
-{
-	int numLeaves;
-	FloatRep parentRep, childRep, leafRep;
-};
+    const int MAX_LEAVES = 32;
+    const int MAX_INTR_LVL = MAX_LEAVES / 2 / 2; // How many internal node pairs on the widest layer of a compressed treelet
+    const int MAX_LEAF_PAIRS = MAX_LEAVES / 2;
 
-struct CmpNodeDim
-{
-	// Root
-	int rootMinSign, rootMinExpo, rootMinMant;
-	int rootMaxSign, rootMaxExpo, rootMaxMant;
+    // The parameters that represent a floating point number format
+    struct FloatRep
+    {
+        int signbits;
+        int expobits;
+        int mantbits;
+        int excess;
+        bool zeroone;
+    };
 
-	// Internal Nodes
-	struct InternalNodePair
-	{
-		int lftExpo, lftMant, rgtExpo, rgtMant, ctrl;
-	};
+    // All the parameters of the compressed representation
+    struct CmpNodeParams
+    {
+        int numLeaves;
+        FloatRep parentRep, childRep, leafRep;
+    };
 
-	InternalNodePair intr[MAX_INTR_LVL][MAX_LEAVES];
+    struct CmpNodeDim
+    {
+        // Root
+        int rootMinSign, rootMinExpo, rootMinMant;
+        int rootMaxSign, rootMaxExpo, rootMaxMant;
 
-	// Leaves
-	struct LeafNodePair
-	{
-		int lftExpo, lftMant, rgtExpo, rgtMant, ctrl;
-	};
+        // Internal Nodes
+        struct InternalNodePair
+        {
+            int lftExpo, lftMant, rgtExpo, rgtMant, ctrl;
+        };
 
-	LeafNodePair leaves[MAX_LEAF_PAIRS];
-};
+        InternalNodePair intr[MAX_INTR_LVL][MAX_LEAVES];
 
-// A complete compressed node that has numLeaves leaves and one root node
+        // Leaves
+        struct LeafNodePair
+        {
+            int lftExpo, lftMant, rgtExpo, rgtMant, ctrl;
+        };
 
-struct CmpNode
-{
-	CmpNodeDim dimX, dimY, dimZ;
+        LeafNodePair leaves[MAX_LEAF_PAIRS];
+    };
 
-	int indicesAndOffsetsGoHere;
+    // A complete compressed node that has numLeaves leaves and one root node
+
+    struct CmpNode
+    {
+        CmpNodeDim dimX, dimY, dimZ;
+
+        int indicesAndOffsetsGoHere;
+    };
+
 };

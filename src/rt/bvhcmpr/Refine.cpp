@@ -1,4 +1,7 @@
 
+// XXX
+#define FW_ENABLE_ASSERT
+
 #include "bvhcmpr/Refine.hpp"
 
 #include <algorithm>
@@ -8,77 +11,69 @@
 namespace FW
 {
 
-    Refine::Refine(BVH& bvh, const BVH::BuildParams& params, const RefineParams& rparams)
+    Refine::Refine(BVH& bvh, const BVH::BuildParams& params, RefineParams& rparams)
         : m_bvh(bvh),
         m_platform(bvh.getPlatform()),
         m_params(params),
         m_rparams(rparams),
-		m_optTreeletsDone(0),
-		m_optTreeletsOutput(0)
-
+        m_optTreeletsDone(0),
+        m_optTreeletsOutput(0)
     {
     }
-
-    //------------------------------------------------------------------------
 
     Refine::~Refine(void)
     {
     }
 
-    //------------------------------------------------------------------------
-
-	// XXXTree depth-first treelet forming as a way of reaching across many layers of splits
-	// !!!!!!!!!!!!!!!!!!!
-
     void Refine::run()
     {
-        // Fill in necessary node stats - area and tri count
-
         // Allocate temporary stuff
         m_sahes.resize(1ull << m_rparams.nTrLeaves);
         m_copt.resize(1ull << m_rparams.nTrLeaves);
         m_popt.resize(1ull << m_rparams.nTrLeaves);
 
-		m_treeletHeur = TreeletHeur::TREELET_CYCLE;
-		TreeletHeur lastHeur = m_treeletHeur;
+        m_treeletHeur = TreeletHeur::TREELET_CYCLE;
+        m_collapseToLeaves = false;
+        m_freezeThreshold = m_rparams.freezeThreshold;
+        TreeletHeur lastHeur = m_treeletHeur;
+        bool lastIter = false;
 
-		for (int i = 0; i < m_rparams.maxLoops; i++) {
-			if (m_rparams.treeletHeuristic == TreeletHeur::TREELET_CYCLE) {
-				m_treeletHeur = static_cast<TreeletHeur>((m_treeletHeur + 1) % TreeletHeur::TREELET_CYCLE);
-			}
-			else if (m_rparams.treeletHeuristic == TreeletHeur::TREELET_CYCLEGR) {
-				if (m_treeletHeur == TreeletHeur::TREELET_GREATER)
-					m_treeletHeur = TreeletHeur::TREELET_RANDOM;
-				else
-					m_treeletHeur = TreeletHeur::TREELET_GREATER;
-			}
-			else {
-				m_treeletHeur = m_rparams.treeletHeuristic;
-			}
+        for (int i = 0; i < m_rparams.maxLoops; i++) {
+            if (m_rparams.treeletHeuristic == TreeletHeur::TREELET_CYCLE)
+                m_treeletHeur = static_cast<TreeletHeur>((m_treeletHeur + 1) % TreeletHeur::TREELET_CYCLE);
+            else
+                m_treeletHeur = m_rparams.treeletHeuristic;
 
-			printf("%d Forming nTr=%d treelets with heur=%d; ", i, m_rparams.nTrLeaves, m_treeletHeur);
-			m_optTreeletsDone = 0;
-			m_optTreeletsOutput = 0;
-			BVHNode* root = m_bvh.getRoot();
-			refineNode(root); // <-------------- THIS IS WHERE WE DO THE WORK
+            printf("%d Forming treelets with %d leaves; heur=%d; ", i, m_rparams.nTrLeaves, m_treeletHeur);
+            m_optTreeletsDone = 0;
+            m_optTreeletsOutput = 0;
+            BVHNode* root = m_bvh.getRoot();
 
-			float optSAH = root->m_sah; // The SAH calculated by the optimizer
-			//if ((i % 100) == 0) root->computeSubtreeSAHValues(m_platform, root->getArea()); // The measured SAH; optimization may not touch the root
-			if (m_params.enablePrints) {
-				printf("optimized sah: %.6f %.6f opts: %d/%d\n", root->m_sah, optSAH, m_optTreeletsOutput, m_optTreeletsDone);
-				// m_bvh.printTree(root);
-			}
+            refineNode(root);
 
-			// Terminate when same heuristic fails twice
-			if (m_optTreeletsOutput > 0) {
-				lastHeur = m_treeletHeur;
-			}
-			else if (lastHeur == m_treeletHeur) {
-				//((Refine::RefineParams&)m_rparams).freezeThreshold = 100;
-				break;
-			}
-		}
-	}
+            if (m_params.enablePrints) {
+                printf("optimized sah: %.6f opts: %d/%d\n", root->m_sah, m_optTreeletsOutput, m_optTreeletsDone);
+                // m_bvh.printTree(root);
+            }
+
+            // Terminate
+            if (lastIter)
+                break;
+            if (m_optTreeletsOutput > 0) {
+                lastHeur = m_treeletHeur;
+            }
+            else if (lastHeur == m_treeletHeur) {
+                m_freezeThreshold = 10000000;
+                m_collapseToLeaves = true;
+                lastIter = true;
+                //printf("Last\n");
+
+                //break;
+            }
+
+            m_rparams.treeletEpsilon *= 2.0f;
+        }
+    }
 
     // Form a treelet rooted at tRoot based on predicate Pred
     // When finished, internals contains all internal nodes, internals[0] is tRoot, and leaves contains all the leaves.
@@ -103,8 +98,8 @@ namespace FW
 
             for (int i = 0; i < node->getNumChildNodes(); i++) {
                 BVHNode* ch = node->getChildNode(i);
-                
-				// Insert the child node after the first node for which the predicate is true
+
+                // Insert the child node after the first node for which the predicate is true
                 auto it = std::find_if(leaves.begin(), leaves.end(), [ch, Pred](const BVHNode* a) { const BVHNode* b = ch; return Pred(a, b); });
                 leaves.insert(it, ch);
             }
@@ -115,44 +110,43 @@ namespace FW
         FW_ASSERT(internals[0] == tRoot);
     }
 
-	void Refine::formTreelet(BVHNode* tRoot, int nTrLeaves, std::vector<BVHNode*>& internals, std::vector<BVHNode*>& leaves)
-	{
-		switch (m_treeletHeur) {
-		case TreeletHeur::TREELET_GREATER:
-			formTreeletPred(tRoot, nTrLeaves, internals, leaves,
-				[](const void* aa, const void* bb) { BVHNode* a = (BVHNode*)aa; BVHNode* b = (BVHNode*)bb;  return (a->isLeaf() && !b->isLeaf()) ? false : (b->isLeaf() && !a->isLeaf()) ? true : a->getArea() > b->getArea(); }); // This worked.
-			break;
-		case TreeletHeur::TREELET_LESS:
-			formTreeletPred(tRoot, nTrLeaves, internals, leaves,
-				[](const void* aa, const void* bb) { BVHNode* a = (BVHNode*)aa; BVHNode* b = (BVHNode*)bb;  return (a->isLeaf() && !b->isLeaf()) ? false : (b->isLeaf() && !a->isLeaf()) ? true : a->getArea() < b->getArea(); }); // a is the one that's already there and b is the one it's inserting
-			break;
-		case TreeletHeur::TREELET_RANDOM:
-			formTreeletPred(tRoot, nTrLeaves, internals, leaves,
-				[](const void* aa, const void* bb) { BVHNode* a = (BVHNode*)aa; BVHNode* b = (BVHNode*)bb;  return (a->isLeaf() && !b->isLeaf()) ? false : (b->isLeaf() && !a->isLeaf()) ? true : !(rand() % 3); }); // 1/3 true
-			break;
-		case TreeletHeur::TREELET_TRUE:
-			formTreeletPred(tRoot, nTrLeaves, internals, leaves,
-				[](const void* aa, const void* bb) { BVHNode* a = (BVHNode*)aa; BVHNode* b = (BVHNode*)bb;  return (a->isLeaf() && !b->isLeaf()) ? false : (b->isLeaf() && !a->isLeaf()) ? true : true; });
-			break;
-		case TreeletHeur::TREELET_FALSE:
-			formTreeletPred(tRoot, nTrLeaves, internals, leaves,
-				[](const void* aa, const void* bb) { BVHNode* a = (BVHNode*)aa; BVHNode* b = (BVHNode*)bb;  return (a->isLeaf() && !b->isLeaf()) ? false : (b->isLeaf() && !a->isLeaf()) ? true : false; });
-			break;
-		}
-	}
+    void Refine::formTreelet(BVHNode* tRoot, int nTrLeaves, std::vector<BVHNode*>& internals, std::vector<BVHNode*>& leaves)
+    {
+        switch (m_treeletHeur) {
+        case TreeletHeur::TREELET_GREATER:
+            formTreeletPred(tRoot, nTrLeaves, internals, leaves,
+                [](const void* aa, const void* bb) { BVHNode* a = (BVHNode*)aa; BVHNode* b = (BVHNode*)bb;  return (a->isLeaf() && !b->isLeaf()) ? false : (b->isLeaf() && !a->isLeaf()) ? true : a->getArea() > b->getArea(); }); // This worked.
+            break;
+        case TreeletHeur::TREELET_LESS:
+            formTreeletPred(tRoot, nTrLeaves, internals, leaves,
+                [](const void* aa, const void* bb) { BVHNode* a = (BVHNode*)aa; BVHNode* b = (BVHNode*)bb;  return (a->isLeaf() && !b->isLeaf()) ? false : (b->isLeaf() && !a->isLeaf()) ? true : a->getArea() < b->getArea(); }); // a is the one that's already there and b is the one it's inserting
+            break;
+        case TreeletHeur::TREELET_RANDOM:
+            formTreeletPred(tRoot, nTrLeaves, internals, leaves,
+                [](const void* aa, const void* bb) { BVHNode* a = (BVHNode*)aa; BVHNode* b = (BVHNode*)bb;  return (a->isLeaf() && !b->isLeaf()) ? false : (b->isLeaf() && !a->isLeaf()) ? true : !(rand() % 3); }); // 1/3 true
+            break;
+        case TreeletHeur::TREELET_TRUE:
+            formTreeletPred(tRoot, nTrLeaves, internals, leaves,
+                [](const void* aa, const void* bb) { BVHNode* a = (BVHNode*)aa; BVHNode* b = (BVHNode*)bb;  return (a->isLeaf() && !b->isLeaf()) ? false : (b->isLeaf() && !a->isLeaf()) ? true : true; });
+            break;
+        case TreeletHeur::TREELET_FALSE:
+            formTreeletPred(tRoot, nTrLeaves, internals, leaves,
+                [](const void* aa, const void* bb) { BVHNode* a = (BVHNode*)aa; BVHNode* b = (BVHNode*)bb;  return (a->isLeaf() && !b->isLeaf()) ? false : (b->isLeaf() && !a->isLeaf()) ? true : false; });
+            break;
+        }
+    }
 
-#if 0
     // Refine some treelet rooted at tRoot
     // Kensler 2008
-    bool Refine::refineTreelet(BVHNode* tRoot)
+    bool Refine::refineTreeletKensler(BVHNode* tRoot)
     {
         std::vector<BVHNode*> internals;
         std::vector<BVHNode*> leaves;
 
-		formTreelet(tRoot, m_rparams.nTrLeaves, internals, leaves);
+        formTreelet(tRoot, m_rparams.nTrLeaves, internals, leaves);
 
         if (leaves.size() < m_rparams.nTrLeaves)
-            return;
+            return false;
 
         // Refine treelet
         // printf("Refining treelet with %d leaves: nI=%d nL=%d\n", m_rparams.nTrLeaves, internals.size(), leaves.size());
@@ -166,7 +160,7 @@ namespace FW
         InnerNode* in = dynamic_cast<InnerNode*>(internals[1]);
 
         float rootArea = m_bvh.getRoot()->getArea();
-		float Ci = m_platform.getCost(rt->getNumChildNodes(), rt->getNumTriangles());
+        float Ci = m_platform.getCost(rt->getNumChildNodes(), rt->getNumTriangles());
 
         AABB box12(leaves[1]->m_bounds); box12.grow(leaves[2]->m_bounds);
         float out0 = box12.area();
@@ -198,63 +192,58 @@ namespace FW
             rt->m_children[1] = leaves[2];
         }
 
-		in->m_sah = Ci * in->getArea() / rootArea + in->m_children[0]->m_sah + in->m_children[1]->m_sah;
-		rt->m_sah = Ci * rt->getArea() / rootArea + rt->m_children[0]->m_sah + rt->m_children[1]->m_sah;
+        in->m_sah = Ci * in->getArea() / rootArea + in->m_children[0]->m_sah + in->m_children[1]->m_sah;
+        rt->m_sah = Ci * rt->getArea() / rootArea + rt->m_children[0]->m_sah + rt->m_children[1]->m_sah;
 
-		return true;
-	}
+        return true;
+    }
 
-#else
+    // Return the index of the first set (one) bit
+    inline U32 ffs(U32 x)
+    {
+        unsigned long ind;
+        _BitScanForward(&ind, x);
+        return ind;
+    }
 
-	// Return the index of the first set (one) bit
-	inline U32 ffs(U32 x)
-	{
-		unsigned long ind;
-		_BitScanForward(&ind, x);
-		return ind;
-	}
+    BVHNode* Refine::formNodes(std::vector<BVHNode*>& internals, std::vector<BVHNode*>& leaves, U32 s)
+    {
+        float rootArea = m_bvh.getRoot()->getArea();
 
-	BVHNode* Refine::formNodes(std::vector<BVHNode*>& internals, std::vector<BVHNode*>& leaves, U32 s)
-	{
-		float rootArea = m_bvh.getRoot()->getArea();
+        if (__popcnt(s) == 1)
+            return leaves[ffs(s)];
 
-		if (__popcnt(s) == 1)
-			return leaves[ffs(s)];
+        U32 p = m_popt[s] & ~LEAF_FLAG;
 
-		U32 p = m_popt[s];
+        BVHNode* l = formNodes(internals, leaves, p);
+        BVHNode* r = formNodes(internals, leaves, s ^ p);
 
-		if (p == 0) {
-			// XXX Flatten all leaves in s into one leaf
-			printf("Epic fail\n");
-		}
+        InnerNode* in = dynamic_cast<InnerNode*>(internals.back());
+        internals.pop_back();
 
-		BVHNode* l = formNodes(internals, leaves, p);
-		BVHNode* r = formNodes(internals, leaves, s ^ p);
+        l->m_parent = r->m_parent = in;
+        in->m_children[0] = l;
+        in->m_children[1] = r;
+        in->m_bounds = l->m_bounds;
+        in->m_bounds.grow(r->m_bounds);
+        in->m_probability = in->getArea() / rootArea;
+        in->m_sah = m_copt[s];
+        in->m_tris = l->m_tris + r->m_tris;
+        in->m_frozen = 0;
+        in->m_treelet = (m_popt[s] & LEAF_FLAG) && m_collapseToLeaves;
 
-		InnerNode* in = dynamic_cast<InnerNode*>(internals.back());
-		internals.pop_back();
+        return in;
+    }
 
-		in->m_children[0] = l;
-		in->m_children[1] = r;
-		in->m_bounds = l->m_bounds;
-		in->m_bounds.grow(r->m_bounds);
-		in->m_probability = in->getArea() / rootArea;
-		in->m_sah = m_copt[s];
-		in->m_tris = l->m_tris + r->m_tris;
-		in->m_frozen = 0;
+    // True if b is sufficiently less than a
+    inline bool fuzzyDiff(const float a, const float b, const float eps)
+    {
+        float d = a - b;
+        float s = d / a;
+        return s > eps;
+    }
 
-		return in;
-	}
-
-	// True if b sufficiently less than a
-	inline bool fuzzyDiff(const float a, const float b, const float eps = 1e-7)
-	{
-		float d = a - b;
-		float s = d / a;
-		return s > eps;
-	}
-
-	// Refine some treelet rooted at tRoot
+    // Refine some treelet rooted at tRoot
     bool Refine::refineTreelet(BVHNode* tRoot)
     {
         const int nL = m_rparams.nTrLeaves;
@@ -262,19 +251,19 @@ namespace FW
         std::vector<BVHNode*> internals;
         std::vector<BVHNode*> leaves;
 
-		formTreelet(tRoot, nL, internals, leaves);
+        formTreelet(tRoot, nL, internals, leaves);
 
-		if (leaves.size() < nL) {
-			tRoot->m_frozen++;
-			return false;
-		}
+        if (leaves.size() < nL) {
+            tRoot->m_frozen++;
+            return false;
+        }
 
-		FW_ASSERT(tRoot == internals[0]);
+        FW_ASSERT(tRoot == internals[0]);
 
         // Calculate surface areas of all subsets
-		float rootArea = m_bvh.getRoot()->getArea();
-		float invRootArea = 1.f / rootArea;
-		for (U32 s = 0; s < (1ul << nL); s++) {
+        float rootArea = m_bvh.getRoot()->getArea();
+        float invRootArea = 1.f / rootArea;
+        for (U32 s = 0; s < (1ul << nL); s++) {
             AABB as;
             for (int i = 0; i < nL; i++) {
                 if ((1 << i) & s)
@@ -282,113 +271,174 @@ namespace FW
             }
             m_sahes[s] = as.area() * invRootArea;
         }
-        
+
         // Initialize costs of leaves
-		for (int i = 0; i < nL; i++)
-			m_copt[1ull << i] = leaves[i]->m_sah;
+        for (int i = 0; i < nL; i++)
+            m_copt[1ull << i] = leaves[i]->m_sah;
 
-		// Optimize each subset
-		for (U32 k = 2; k <= (U32)nL; k++) { // Number of leaves in the subset
-			for (U32 s = 0; s < (1ul << nL); s++) {
-				if (__popcnt(s) == k) {
-					float bestC = FW_F32_MAX;
-					U32 bestP = 0;
-					S32 d = (s - 1) & s;
-					S32 p = (-d) & s;
+        // Optimize each subset
+        for (U32 k = 2; k <= (U32)nL; k++) { // Number of leaves in the subset
+            for (U32 s = 0; s < (1ul << nL); s++) {
+                if (__popcnt(s) == k) {
+                    float bestC = FW_F32_MAX;
+                    U32 bestP = 0;
+                    S32 d = (s - 1) & s;
+                    S32 p = (-d) & s;
 
-					// Find best partition of s
-					do {
-						float c = m_copt[p] + m_copt[s ^ p];
-						if (c < bestC) {
-							bestC = c;
-							bestP = p;
-						}
-						p = (p - d) & s; // Find the next valid partitioning with k bits set
-					} while (p > 0);
+                    // Find best partition of s
+                    do {
+                        float c = m_copt[p] + m_copt[s ^ p];
+                        if (c < bestC) {
+                            bestC = c;
+                            bestP = p;
+                        }
+                        p = (p - d) & s; // Find the next valid partitioning with k bits set
+                    } while (p > 0);
 
-					// Calculate final SAH cost for s
-					int sTris = 0;
-					for (int i = 0; i < nL; i++)
-						if((1ul << i) & s)
-							sTris += leaves[i]->m_tris;
-					//float SAHAsLeaf = m_platform.getCost(0, sTris) * m_sahes[s];
-					float SAHAsLeaf = 9999999999.0f; // XXX
-					float SAHAsTreelet = m_platform.getCost(2, 0) * m_sahes[s] + bestC; // My cost plus the cost of my two children
-					m_copt[s] = min(SAHAsTreelet, SAHAsLeaf);
-					if (SAHAsLeaf < SAHAsTreelet) {
-						bestP = 0; // Force leaf
-						printf("forceLeaf 0x%x 0x%x %f < %f\n", s, p, SAHAsLeaf, SAHAsTreelet);
-					}
-					m_popt[s] = bestP;
-				}
-			}
-		}
+                    // Calculate final SAH cost for s
+                    int sTris = 0;
+                    for (int i = 0; i < nL; i++)
+                        if ((1ul << i) & s)
+                            sTris += leaves[i]->m_tris;
+                    float SAHAsLeaf = m_platform.getCost(0, sTris) * m_sahes[s];
+                    float SAHAsTreelet = m_platform.getCost(2, 0) * m_sahes[s] + bestC; // My cost plus the cost of my two children
+                    m_copt[s] = min(SAHAsLeaf, SAHAsTreelet);
+                    if (SAHAsLeaf < SAHAsTreelet) {
+                        // Don't collapse the leaf now; just treat the SAH as though we were collapsing it.
+                        // Setting bestP to 0 should be fine, but we don't want to flatten leaves until after, so we preserve partitioning.
+                        bestP = bestP | LEAF_FLAG; // Force leaf
+                        // printf("forceLeaf 0x%x 0x%x %f < %f\n", s, p, SAHAsLeaf, SAHAsTreelet);
+                    }
+                    m_popt[s] = bestP;
+                }
+            }
+        }
 
-		m_optTreeletsDone++;
+        m_optTreeletsDone++;
 
-		// Construct treelet
-		U32 rti = (1ul << nL) - 1;
-		if (fuzzyDiff(tRoot->m_sah, m_copt[rti])) {
-			//float diff = tRoot->m_sah - m_copt[rti];
-			//printf("\nTreelet: 0x%08x %.8g - %.8g = %.8g  %.8g\n", tRoot, tRoot->m_sah, m_copt[rti], diff, m_copt[rti]);
-			//m_bvh.printTree(tRoot);
+        // Construct treelet
+        U32 rti = (1ul << nL) - 1;
+        if (m_collapseToLeaves || fuzzyDiff(tRoot->m_sah, m_copt[rti], m_rparams.treeletEpsilon)) {
+            //if (m_rparams.treeletEpsilon == 1e-2f) {
+            //	float diff = tRoot->m_sah - m_copt[rti];
+            //	printf("Treelet: 0x%08x %.8g - %.8g = %.8g  %.8g %f\n", tRoot, tRoot->m_sah, m_copt[rti], diff, m_rparams.treeletEpsilon, diff / tRoot->m_sah);
+            //	//m_bvh.printTree(tRoot);
+            //}
 
-			m_optTreeletsOutput++;
+            m_optTreeletsOutput++;
 
-			// Because tRoot == internals[0] it properly attaches the subtree root
-			formNodes(internals, leaves, rti);
+            // Because tRoot == internals[0] it properly attaches the subtree root
+            formNodes(internals, leaves, rti);
 
-			FW_ASSERT(internals.size() == 0);
-			
-			//printf("\n");
-			//m_bvh.printTree(tRoot);
+            FW_ASSERT(internals.size() == 0);
 
-			return true;
-		}
+            return true;
+        }
 
-		tRoot->m_frozen++;
+        tRoot->m_frozen++;
 
-		return false;
-	}
-
-#endif
+        return false;
+    }
 
     bool Refine::refineNode(BVHNode* node)
     {
-		// Abort if this node isn't big enough to form the treelet
-		if (node->m_tris < m_rparams.nTrLeaves || node->isLeaf())
-			return false;
+        // Abort if this node isn't big enough to form the treelet
+        if (node->m_tris < m_rparams.nTrLeaves || node->isLeaf())
+            return false;
 
-		// Abort if this subtree has not improved in too long
-		if (node->m_frozen > m_rparams.freezeThreshold) {
-			//printf("f");
-			return false;
-		}
+        // Abort if this subtree has not improved in too long
+        if (node->m_frozen > m_freezeThreshold)
+            return false;
 
-		bool childSucc = false;
+        bool childSucc = false;
         for (int i = 0; i < node->getNumChildNodes(); i++)
             childSucc |= refineNode(node->getChildNode(i));
 
         bool succ = refineTreelet(node);
 
-		if (childSucc && !succ) {
-			// Compute my SAH if refineTreelet was unsuccessful (to keep it up to date in case children updated)
-			node->m_sah = m_platform.getCost(node->getNumChildNodes(), 0) * node->getArea() / m_bvh.getRoot()->getArea();
-			for (int i = 0; i < node->getNumChildNodes(); i++)
-				node->m_sah += node->getChildNode(i)->m_sah;
-			node->m_frozen = 0;
-		}
+        if (childSucc && !succ) {
+            // Compute my SAH if refineTreelet was unsuccessful (to keep it up to date in case children updated)
+            node->m_sah = m_platform.getCost(node->getNumChildNodes(), 0) * node->getArea() / m_bvh.getRoot()->getArea();
+            for (int i = 0; i < node->getNumChildNodes(); i++)
+                node->m_sah += node->getChildNode(i)->m_sah;
+            node->m_frozen = 0;
+        }
 
-		return succ || childSucc;
+        return succ || childSucc;
     }
 
-	void Refine::collapseLeaves()
-	{
-		// Depth-first traversal to insert triIndices into new triIndices array
-		//Array<S32>& tris = m_bvh.getTriIndices();
-		//for (int i = 0; i < spec.numRef; i++)
-		//	tris.add(m_refStack.removeLast().triIdx);
-		//return new LeafNode(spec.bounds, tris.getSize() - spec.numRef, tris.getSize());
+    // Returns treelet root node so it can be attached to parent
+    BVHNode* Refine::collapseLeavesRecursive(BVHNode* node, Array<S32>& tris)
+    {
+        if (node->isLeaf()) {
+            Array<S32>& oldTris = m_bvh.getTriIndices();
+            LeafNode* oldL = dynamic_cast<LeafNode*>(node);
 
-	}
+            // Copy the indices
+            int lo = tris.getSize();
+            FW_ASSERT(oldL->m_hi - oldL->m_lo == node->m_tris);
+            for (int i = oldL->m_lo; i < oldL->m_hi; i++) {
+                tris.add(oldTris[i]);
+            }
+
+            // Update the leaf node
+            oldL->m_lo = lo;
+            oldL->m_hi = tris.getSize();
+        }
+        else {
+            InnerNode* oldI = dynamic_cast<InnerNode*>(node);
+
+            // Find treelet to collapse
+            float SAHAsLeaf = m_platform.getCost(0, node->m_tris) * node->m_probability;
+
+            S32 lo = tris.getSize();
+            node->m_sah = m_platform.getCost(node->getNumChildNodes(), 0) * node->m_probability;
+
+            for (int i = 0; i < node->getNumChildNodes(); i++) {
+                oldI->m_children[i] = collapseLeavesRecursive(node->getChildNode(i), tris);
+                node->m_sah += oldI->m_children[i]->m_sah;
+            }
+
+            if (SAHAsLeaf < node->m_sah && node->m_tris <= m_platform.getMaxLeafSize()) {
+                // Not using the m_treelet flag, which indicates a node that the algorithm indicated should be collapsed.
+                // The algorithm doesn't take MaxLeafSize into account, etc. And SAH is better this way.
+
+                // Remove duplicate triangle references
+                std::sort(&tris[0] + lo, &tris[0] + tris.getSize());
+
+                for (S32 t = lo; t < tris.getSize() - 1; t++) {
+                    if (tris[t] == tris[t + 1]) {
+                        tris.remove(t);
+                        t--;
+                    }
+                }
+
+                // Make the new leaf
+                BVHNode* newL = new LeafNode(node->m_bounds, lo, tris.getSize());
+                newL->m_tris = tris.getSize() - lo;
+                newL->m_probability = node->m_probability;
+                newL->m_sah = SAHAsLeaf;
+
+                node->deleteSubtree();
+
+                return newL;
+            }
+        }
+
+        return node;
+    }
+
+    void Refine::collapseLeaves()
+    {
+        Array<S32>& oldTris = m_bvh.getTriIndices();
+        Array<S32> newTris;
+
+        // Depth-first traversal to insert triIndices into new triIndices array
+        BVHNode* newRoot = collapseLeavesRecursive(m_bvh.getRoot(), newTris);
+
+        m_bvh.setRoot(newRoot);
+
+        // Move these in and delete the old ones
+        oldTris = newTris;
+    }
 };

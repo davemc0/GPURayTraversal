@@ -25,9 +25,12 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+// #define FW_ENABLE_ASSERT
+
 #include "bvh/BVH.hpp"
 #include "bvh/SplitBVHBuilder.hpp"
 #include "bvhcmpr/Refine.hpp"
+#include "bvhcmpr/RefineBittner.hpp"
 
 #include <bitset>
 #include <iostream>
@@ -48,32 +51,56 @@ BVH::BVH(Scene* scene, const Platform& platform, const BuildParams& params)
 	int oldMaxLeafSize = m_platform.getMaxLeafSize();
 	m_platform.setLeafPreferences(1, 1);
 
-    m_root = SplitBVHBuilder(*this, params).run();
+    // XXX Disable splitting
+    BuildParams sparams = params;
+    sparams.splitAlpha = FW_F32_MAX;
+
+    m_root = SplitBVHBuilder(*this, sparams).run();
 
 	m_platform.setLeafPreferences(oldMinLeafSize, oldMaxLeafSize);
 
 #if 0
 	// XXX Prune Tree
-	m_root->computeSubtreeSAHValues(m_platform, m_root->getArea());
+	m_root->computeSubtreeValues(m_platform, m_root->getArea());
 	while (dynamic_cast<InnerNode*>(m_root)->m_children[0]->m_tris >= 3)
 		m_root = dynamic_cast<InnerNode*>(m_root)->m_children[0];
-	m_root->computeSubtreeSAHValues(m_platform, m_root->getArea());
+	m_root->computeSubtreeValues(m_platform, m_root->getArea());
 
 	printTree(m_root);
 #endif
 
+	m_root->computeSubtreeValues(m_platform, m_root->getArea());
+
+	if (params.enablePrints) {
+		printf("BVH: Scene bounds: (%.1f,%.1f,%.1f) - (%.1f,%.1f,%.1f)\n", m_root->m_bounds.min().x, m_root->m_bounds.min().y, m_root->m_bounds.min().z,
+			m_root->m_bounds.max().x, m_root->m_bounds.max().y, m_root->m_bounds.max().z);
+		printf("top-down sah: %.6f\n", m_root->m_sah);
+	}
+
+    Refine::RefineParams rparams;
+    rparams.nTrLeaves = 7;
+    rparams.freezeThreshold = 6;
+    rparams.maxLoops = 1;
+    rparams.treeletEpsilon = 1e-8f;
+    rparams.treeletHeuristic = Refine::TreeletHeur::TREELET_CYCLE;
+    Refine Ref(*this, params, rparams);
+
+    BRefine::BRefineParams bparams;
+    BRefine BRef(*this, params, bparams);
+
+    for(int x=0; x<100; x++)
+    {
+        BRef.run();
+
+        Ref.run();
+    }
+    printf("Collapse1\n");
+    Ref.collapseLeaves();
+    printf("Collapse2\n");
+
+	m_root->computeSubtreeValues(m_platform, m_root->getArea(), true);
 	if (params.enablePrints)
-        printf("BVH: Scene bounds: (%.1f,%.1f,%.1f) - (%.1f,%.1f,%.1f)\n", m_root->m_bounds.min().x, m_root->m_bounds.min().y, m_root->m_bounds.min().z,
-        m_root->m_bounds.max().x, m_root->m_bounds.max().y, m_root->m_bounds.max().z);
-
-    m_root->computeSubtreeSAHValues(m_platform, m_root->getArea());
-    if (params.enablePrints)
-        printf("top-down sah: %.2f\n", m_root->m_sah);
-
-	Refine::RefineParams rparams;
-	Refine(*this, params, rparams).run(); // Must properly compute SAH, etc.
-
-	// exit(1); // XXX
+		printf("leaf collapse sah: %.6f\n", m_root->m_sah);
 
 	if (params.stats)
     {

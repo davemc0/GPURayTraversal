@@ -52,7 +52,7 @@ enum BVH_STAT
 class BVHNode
 {
 public:
-    BVHNode() : m_probability(1.f),m_parentProbability(1.f),m_treelet(-1),m_index(-1),m_sah(0),m_tris(0),m_frozen(0) {}
+	BVHNode() : m_probability(1.f), m_treelet(-1), m_index(-1), m_sah(0), m_tris(0), m_frozen(0), m_parent(nullptr) {}
     virtual bool        isLeaf() const = 0;
     virtual S32         getNumChildNodes() const = 0;
     virtual BVHNode*    getChildNode(S32 i) const   = 0;
@@ -64,7 +64,6 @@ public:
 
     // These are somewhat experimental, for some specific test and may be invalid...
     float       m_probability;          // probability of coming here (widebvh uses this)
-    float       m_parentProbability;    // probability of coming to parent (widebvh uses this)
     float       m_sah;                  // SAH cost of this node and all child nodes
 
     int         m_treelet;              // for queuing tests (qmachine uses this)
@@ -72,13 +71,17 @@ public:
 	int         m_tris;                 // number of triangles in the subtree (Refine uses this)
 	int         m_frozen;               // How many passes since this subtree has had improvement
 
+	BVHNode*    m_parent;               // Pointer to parent
+
     // Subtree functions
     int     getSubtreeSize(BVH_STAT stat=BVH_STAT_NODE_COUNT) const;
-    void    computeSubtreeSAHValues(const Platform& p, const float rootArea); // Fills in m_probability, m_sah, m_tris
+    void    computeSubtreeValues(const Platform& p, const float rootArea, bool recomputeBounds = false); // Fills in m_probability, m_sah, m_tris
     void    deleteSubtree();
 
     void    assignIndicesDepthFirst  (S32 index=0, bool includeLeafNodes=true);
     void    assignIndicesBreadthFirst(S32 index=0, bool includeLeafNodes=true);
+
+	void    computeValues(const Platform& p, const float rootArea, bool recomputeBounds);  // Recompute all stats based on child data WITHOUT RECURSING
 };
 
 

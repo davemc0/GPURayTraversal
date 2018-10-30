@@ -94,8 +94,9 @@ public:
 
     Scene*              getScene                (void) const            { return m_scene; }
     const Platform&     getPlatform             (void) const            { return m_platform; }
-    BVHNode*            getRoot                 (void) const            { return m_root; }
-    void                trace                   (RayBuffer& rays, RayStats* stats = NULL) const;
+	BVHNode*            getRoot                 (void) const            { return m_root; }
+	void                setRoot                 (BVHNode* rt)           { m_root = rt; }
+	void                trace                   (RayBuffer& rays, RayStats* stats = NULL) const;
 
     Array<S32>&         getTriIndices           (void)                  { return m_triIndices; }
     const Array<S32>&   getTriIndices           (void) const            { return m_triIndices; }

@@ -109,20 +109,41 @@ void BVHNode::deleteSubtree()
 }
 
 // SAH = node cost * root cond prob + SAH of direct children (which includes all descendants)
-void BVHNode::computeSubtreeSAHValues(const Platform& p, const float rootArea)
+void BVHNode::computeSubtreeValues(const Platform& p, const float rootArea, bool recomputeBounds)
 {
-	m_probability = m_bounds.area() / rootArea;
-	m_tris = getNumTriangles();
-	float C = p.getCost(getNumChildNodes(), m_tris); // Work cost of just this node
-	m_sah = m_probability * C;
-
     for (int i = 0; i < getNumChildNodes(); i++) {
 		BVHNode* ch = getChildNode(i);
-		ch->m_parentProbability = m_probability;
-		ch->computeSubtreeSAHValues(p, rootArea);
+		ch->m_parent = this;
+		ch->computeSubtreeValues(p, rootArea, recomputeBounds);
+    }
+
+	computeValues(p, rootArea, false);
+}
+
+//-------------------------------------------------------------
+
+void BVHNode::computeValues(const Platform& p, const float rootArea, bool recomputeBounds)
+{
+	// For inner nodes recompute bounds; for leaves don't.
+	if (!isLeaf() && recomputeBounds)
+		m_bounds = AABB();
+
+	m_sah = 0;
+	m_tris = 0;
+	for (int i = 0; i < getNumChildNodes(); i++) {
+		BVHNode* ch = getChildNode(i);
 		m_sah += ch->m_sah;
 		m_tris += ch->m_tris;
-    }
+		if (!isLeaf() && recomputeBounds)
+			m_bounds.grow(ch->m_bounds);
+	}
+
+	m_probability = m_bounds.area() / rootArea;
+	m_tris += getNumTriangles();
+	float C = p.getCost(getNumChildNodes(), getNumTriangles());
+	m_sah += m_probability * C;
+	m_treelet = 0;
+	m_frozen = 0;
 }
 
 //-------------------------------------------------------------

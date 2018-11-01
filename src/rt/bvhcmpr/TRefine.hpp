@@ -1,9 +1,6 @@
 
 #pragma once
 
-#include "bvhcmpr/TRefine.hpp"
-#include "bvhcmpr/BRefine.hpp"
-
 #include "bvh/BVH.hpp"
 #include "base/Timer.hpp"
 
@@ -14,7 +11,7 @@ namespace FW
     const int maxTrInternals = 31;
     const int maxTrLeaves = 32;
 
-    class Refine
+    class TRefine
     {
     public:
         enum TreeletHeur {
@@ -60,8 +57,8 @@ namespace FW
         };
 
     public:
-        Refine(BVH& bvh, const BVH::BuildParams& params, RefineParams& rparams);
-        ~Refine(void);
+        TRefine(BVH& bvh, const BVH::BuildParams& params, RefineParams& rparams);
+        ~TRefine(void);
 
         void run();
 
@@ -70,8 +67,8 @@ namespace FW
         void setParams(RefineParams& rparams) { m_rparams = rparams; }
 
     private:
-        Refine(const Refine&); // forbidden
-        Refine& operator=(const Refine&); // forbidden
+        TRefine(const TRefine&); // forbidden
+        TRefine& operator=(const TRefine&); // forbidden
 
         template<class Pr>
         void formTreeletPred(BVHNode* troot, int nTrLeaves, std::vector<BVHNode*>& internals, std::vector<BVHNode*>& leaves, Pr Pred);
@@ -85,7 +82,7 @@ namespace FW
 
         bool refineNode(BVHNode* node); // The recursive call; returns true if it made progress
 
-        BVHNode* Refine::collapseLeavesRecursive(BVHNode* node, Array<S32>& tris);
+        BVHNode* TRefine::collapseLeavesRecursive(BVHNode* node, Array<S32>& tris);
         const U32 LEAF_FLAG = 0x80000000;
 
     private:

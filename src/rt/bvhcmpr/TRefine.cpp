@@ -11,7 +11,7 @@
 namespace FW
 {
 
-    Refine::Refine(BVH& bvh, const BVH::BuildParams& params, RefineParams& rparams)
+    TRefine::TRefine(BVH& bvh, const BVH::BuildParams& params, RefineParams& rparams)
         : m_bvh(bvh),
         m_platform(bvh.getPlatform()),
         m_params(params),
@@ -20,11 +20,11 @@ namespace FW
     {
     }
 
-    Refine::~Refine(void)
+    TRefine::~TRefine(void)
     {
     }
 
-    void Refine::run()
+    void TRefine::run()
     {
         // Allocate temporary stuff
         m_sahes.resize(1ull << m_rparams.nTrLeaves);
@@ -79,7 +79,7 @@ namespace FW
     // Form a treelet rooted at tRoot based on predicate Pred
     // When finished, internals contains all internal nodes, internals[0] is tRoot, and leaves contains all the leaves.
     template<class Pr>
-    void Refine::formTreeletPred(BVHNode* tRoot, int nTrLeaves, std::vector<BVHNode*>& internals, std::vector<BVHNode*>& leaves, Pr Pred)
+    void TRefine::formTreeletPred(BVHNode* tRoot, int nTrLeaves, std::vector<BVHNode*>& internals, std::vector<BVHNode*>& leaves, Pr Pred)
     {
         FW_ASSERT(internals.size() == 0 && leaves.size() == 0);
 
@@ -111,7 +111,7 @@ namespace FW
         FW_ASSERT(internals[0] == tRoot);
     }
 
-    void Refine::formTreelet(BVHNode* tRoot, int nTrLeaves, std::vector<BVHNode*>& internals, std::vector<BVHNode*>& leaves)
+    void TRefine::formTreelet(BVHNode* tRoot, int nTrLeaves, std::vector<BVHNode*>& internals, std::vector<BVHNode*>& leaves)
     {
         switch (m_treeletHeur) {
         case TreeletHeur::TREELET_GREATER:
@@ -137,9 +137,9 @@ namespace FW
         }
     }
 
-    // TRefine some treelet rooted at tRoot
+    // Refine some treelet rooted at tRoot
     // Kensler 2008
-    bool Refine::refineTreeletKensler(BVHNode* tRoot)
+    bool TRefine::refineTreeletKensler(BVHNode* tRoot)
     {
         std::vector<BVHNode*> internals;
         std::vector<BVHNode*> leaves;
@@ -149,7 +149,7 @@ namespace FW
         if (leaves.size() < m_rparams.nTrLeaves)
             return false;
 
-        // TRefine treelet
+        // Refine treelet
         // printf("Refining treelet with %d leaves: nI=%d nL=%d\n", m_rparams.nTrLeaves, internals.size(), leaves.size());
         // for (auto i : leaves)
         //     printf("%c=>%f  ", i->isLeaf() ? 'L' : 'I', i->getArea());
@@ -207,7 +207,7 @@ namespace FW
         return ind;
     }
 
-    BVHNode* Refine::formNodes(std::vector<BVHNode*>& internals, std::vector<BVHNode*>& leaves, U32 s)
+    BVHNode* TRefine::formNodes(std::vector<BVHNode*>& internals, std::vector<BVHNode*>& leaves, U32 s)
     {
         float rootArea = m_bvh.getRoot()->getArea();
 
@@ -244,8 +244,8 @@ namespace FW
         return s > eps;
     }
 
-    // TRefine some treelet rooted at tRoot
-    bool Refine::refineTreelet(BVHNode* tRoot)
+    // Refine some treelet rooted at tRoot
+    bool TRefine::refineTreelet(BVHNode* tRoot)
     {
         const int nL = m_rparams.nTrLeaves;
 
@@ -344,7 +344,7 @@ namespace FW
         return false;
     }
 
-    bool Refine::refineNode(BVHNode* node)
+    bool TRefine::refineNode(BVHNode* node)
     {
         m_stats.optVisits++;
 
@@ -383,7 +383,7 @@ namespace FW
     }
 
     // Returns treelet root node so it can be attached to parent
-    BVHNode* Refine::collapseLeavesRecursive(BVHNode* node, Array<S32>& newTriIndices)
+    BVHNode* TRefine::collapseLeavesRecursive(BVHNode* node, Array<S32>& newTriIndices)
     {
         if (node->isLeaf()) {
             Array<S32>& oldTriIndices = m_bvh.getTriIndices();
@@ -443,7 +443,7 @@ namespace FW
         return node;
     }
 
-    void Refine::collapseLeaves()
+    void TRefine::collapseLeaves()
     {
         printf("Collapse ");
 

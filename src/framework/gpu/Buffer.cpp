@@ -30,6 +30,9 @@
 
 using namespace FW;
 
+// Added because a lot of the CUDA driver API functions are deprecated and I don't care.
+#pragma warning(disable : 4996)
+
 //------------------------------------------------------------------------
 
 #define FW_IO_BUFFER_SIZE 65536

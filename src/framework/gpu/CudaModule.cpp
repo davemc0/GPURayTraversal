@@ -33,6 +33,9 @@
 
 using namespace FW;
 
+// Added because a lot of the CUDA driver API functions are deprecated and I don't care.
+#pragma warning(disable : 4996)
+
 //------------------------------------------------------------------------
 
 bool        CudaModule::s_inited        = false;

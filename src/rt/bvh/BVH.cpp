@@ -25,17 +25,16 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-// #define FW_ENABLE_ASSERT
+#define FW_ENABLE_ASSERT
 
 #include "bvh/BVH.hpp"
 #include "bvh/SplitBVHBuilder.hpp"
 #include "bvh/RandomBVHBuilder.hpp"
-#include "bvh/LBVHBuilder.hpp"
 #include "bvhcmpr/Refine.hpp"
 
-//#include <iostream>
-
 using namespace FW;
+
+extern void testThrust();
 
 BVH::BVH(Scene* scene, const Platform& platform, const BuildParams& params)
 {

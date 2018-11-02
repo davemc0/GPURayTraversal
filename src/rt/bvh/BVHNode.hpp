@@ -75,13 +75,13 @@ public:
 
     // Subtree functions
     int     getSubtreeSize(BVH_STAT stat=BVH_STAT_NODE_COUNT) const;
-    void    computeSubtreeValues(const Platform& p, const float rootArea, bool recomputeBounds = false); // Fills in m_probability, m_sah, m_tris
+    void    computeSubtreeValues(const Platform& p, const float rootArea, bool recomputeBounds = false, bool resetFrozen = true); // Fills in m_probability, m_sah, m_tris
     void    deleteSubtree();
 
     void    assignIndicesDepthFirst  (S32 index=0, bool includeLeafNodes=true);
     void    assignIndicesBreadthFirst(S32 index=0, bool includeLeafNodes=true);
 
-	void    computeValues(const Platform& p, const float rootArea, bool recomputeBounds);  // Recompute all stats based on child data WITHOUT RECURSING
+	void    computeValues(const Platform& p, const float rootArea, bool recomputeBounds, bool resetFrozen);  // Recompute all stats based on child data WITHOUT RECURSING
 };
 
 

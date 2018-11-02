@@ -109,41 +109,42 @@ void BVHNode::deleteSubtree()
 }
 
 // SAH = node cost * root cond prob + SAH of direct children (which includes all descendants)
-void BVHNode::computeSubtreeValues(const Platform& p, const float rootArea, bool recomputeBounds)
+void BVHNode::computeSubtreeValues(const Platform& p, const float rootArea, bool recomputeBounds, bool resetFrozen)
 {
     for (int i = 0; i < getNumChildNodes(); i++) {
-		BVHNode* ch = getChildNode(i);
-		ch->m_parent = this;
-		ch->computeSubtreeValues(p, rootArea, recomputeBounds);
+        BVHNode* ch = getChildNode(i);
+        ch->m_parent = this;
+        ch->computeSubtreeValues(p, rootArea, recomputeBounds, resetFrozen);
     }
 
-	computeValues(p, rootArea, false);
+    computeValues(p, rootArea, false, resetFrozen);
 }
 
 //-------------------------------------------------------------
 
-void BVHNode::computeValues(const Platform& p, const float rootArea, bool recomputeBounds)
+void BVHNode::computeValues(const Platform& p, const float rootArea, bool recomputeBounds, bool resetFrozen)
 {
-	// For inner nodes recompute bounds; for leaves don't.
-	if (!isLeaf() && recomputeBounds)
-		m_bounds = AABB();
+    // For inner nodes recompute bounds; for leaves don't.
+    if (!isLeaf() && recomputeBounds)
+        m_bounds = AABB();
 
-	m_sah = 0;
-	m_tris = 0;
-	for (int i = 0; i < getNumChildNodes(); i++) {
-		BVHNode* ch = getChildNode(i);
-		m_sah += ch->m_sah;
-		m_tris += ch->m_tris;
-		if (!isLeaf() && recomputeBounds)
-			m_bounds.grow(ch->m_bounds);
-	}
+    m_sah = 0;
+    m_tris = 0;
+    for (int i = 0; i < getNumChildNodes(); i++) {
+        BVHNode* ch = getChildNode(i);
+        m_sah += ch->m_sah;
+        m_tris += ch->m_tris;
+        if (!isLeaf() && recomputeBounds)
+            m_bounds.grow(ch->m_bounds);
+    }
 
-	m_probability = m_bounds.area() / rootArea;
-	m_tris += getNumTriangles();
-	float C = p.getCost(getNumChildNodes(), getNumTriangles());
-	m_sah += m_probability * C;
-	m_treelet = 0;
-	m_frozen = 0;
+    m_probability = m_bounds.area() / rootArea;
+    m_tris += getNumTriangles();
+    m_sah += m_probability * p.getCost(getNumChildNodes(), getNumTriangles());
+    m_treelet = 0;
+    if (resetFrozen)
+        m_frozen = 0;
+    FW_ASSERT(m_tris > 0);
 }
 
 //-------------------------------------------------------------

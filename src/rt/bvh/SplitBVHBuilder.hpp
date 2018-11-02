@@ -123,6 +123,7 @@ private:
 
     Timer                   m_progressTimer;
     S32                     m_numDuplicates;
+    bool                    m_doMulticore;
 };
 
 //------------------------------------------------------------------------

@@ -51,6 +51,9 @@ SplitBVHBuilder::~SplitBVHBuilder(void)
 
 BVHNode* SplitBVHBuilder::run(void)
 {
+    if (m_params.enablePrints)
+        printf("SBVH alpha=%g minLeafSize=%d maxLeafSize=%d\n", m_params.splitAlpha, m_platform.getMinLeafSize(), m_platform.getMaxLeafSize());
+
     // Initialize reference stack and determine root bounds.
 
     const Vec3i* tris = (const Vec3i*)m_bvh.getScene()->getTriVtxIndexBuffer().getPtr();
@@ -207,7 +210,7 @@ SplitBVHBuilder::ObjectSplit SplitBVHBuilder::findObjectSplit(const NodeSpec& sp
 
     for (m_sortDim = 0; m_sortDim < 3; m_sortDim++)
     {
-        sort(this, m_refStack.getSize() - spec.numRef, m_refStack.getSize(), sortCompare, sortSwap);
+        sort(this, m_refStack.getSize() - spec.numRef, m_refStack.getSize(), sortCompare, sortSwap, m_params.doMulticore);
 
         // Sweep right to left and determine bounds.
 
@@ -245,7 +248,7 @@ SplitBVHBuilder::ObjectSplit SplitBVHBuilder::findObjectSplit(const NodeSpec& sp
 void SplitBVHBuilder::performObjectSplit(NodeSpec& left, NodeSpec& right, const NodeSpec& spec, const ObjectSplit& split)
 {
     m_sortDim = split.sortDim;
-    sort(this, m_refStack.getSize() - spec.numRef, m_refStack.getSize(), sortCompare, sortSwap);
+    sort(this, m_refStack.getSize() - spec.numRef, m_refStack.getSize(), sortCompare, sortSwap, m_params.doMulticore);
 
     left.numRef = split.numLeft;
     left.bounds = split.leftBounds;

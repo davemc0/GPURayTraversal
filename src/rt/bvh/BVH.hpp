@@ -74,12 +74,15 @@ public:
         Stats*      stats;
         bool        enablePrints;
         F32         splitAlpha;     // spatial split area threshold
+        bool        doMulticore;
+
 
         BuildParams(void)
         {
             stats           = NULL;
             enablePrints    = true;
             splitAlpha      = 1.0e-5f;
+            doMulticore     = true;
         }
 
         U32 computeHash(void) const

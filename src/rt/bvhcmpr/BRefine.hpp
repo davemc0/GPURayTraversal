@@ -2,7 +2,6 @@
 #pragma once
 
 #include "bvh/BVH.hpp"
-#include "base/Timer.hpp"
 
 #include <vector>
 
@@ -14,22 +13,26 @@ namespace FW
     {
     public:
 
-        struct BRefineParams
+        struct Params
         {
             int maxLoops = 10;
             float batchSize = 0.01f;
             float timeBudget = 0.0f;
+            float perPassImprovement = 0.0001f; // Abort pass loop if a pass has less than this SAH improvement
+            bool chooseRandomNode = false;
+            bool removeRandomChild = true;
+            int nodesToRemove = 1;
         };
 
     public:
-        BRefine(BVH& bvh, const BVH::BuildParams& params, BRefineParams& rparams);
+        BRefine(Refine& ref, Params& rparams);
         ~BRefine(void);
 
         void run();
 
         void collapseLeaves();
 
-        void setParams(BRefineParams& rparams) { m_rparams = rparams; }
+        void setParams(Params& rparams) { m_rparams = rparams; }
 
     private:
         BRefine(const BRefine&); // forbidden
@@ -39,16 +42,17 @@ namespace FW
 
         bool refineNode(BVHNode* node); // The recursive call; returns true if it made progress
 
-        void removeForOpt(BVHNode* node);
+        void remove1ForOpt(BVHNode* node); // Mine
+        void remove2ForOpt(BVHNode* node); // Bittner
         void insertForOpt(BVHNode* node);
+        void planRemoveReplace(BVHNode * node);
         BVHNode* findInsertTarget(BVHNode* node);
 
     private:
-
         BVH& m_bvh;
+        Refine& m_refine;
         const Platform& m_platform;
-        const BVH::BuildParams& m_params;
-        BRefineParams& m_rparams;
+        Params& m_rparams;
 
         std::vector<OptPair_T> m_toOptimize; // Float key is badness metric
         std::vector<OptPair_T> m_toRecycle; // Float key is unused
@@ -56,8 +60,6 @@ namespace FW
         std::vector<OptPair_T> m_toSearch; // Float key is induced cost XXX Should probably be a different container for O(1) insert/remove
 
         float m_rootArea; // Keep this for better optimization
-
-        Timer m_progressTimer;
 
         int m_nodesInserted;
     };

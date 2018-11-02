@@ -29,22 +29,28 @@
 
 #include "bvh/BVH.hpp"
 #include "bvh/SplitBVHBuilder.hpp"
+#include "bvh/RandomBVHBuilder.hpp"
+#include "bvh/LBVHBuilder.hpp"
 #include "bvhcmpr/Refine.hpp"
-#include "bvhcmpr/RefineBittner.hpp"
 
-#include <bitset>
-#include <iostream>
+//#include <iostream>
 
 using namespace FW;
 
 BVH::BVH(Scene* scene, const Platform& platform, const BuildParams& params)
 {
+    testThrust();
+
     FW_ASSERT(scene);
     m_scene = scene;
     m_platform = platform;
 
     if (params.enablePrints)
         printf("BVH builder: %d tris, %d vertices\n", scene->getNumTriangles(), scene->getNumVertices());
+
+    Refine Ref(*this);
+
+    Ref.getTimer().start();
 
 	// Have one prim per leaf in SBVH, then refine it later
 	int oldMinLeafSize = m_platform.getMinLeafSize();
@@ -53,56 +59,45 @@ BVH::BVH(Scene* scene, const Platform& platform, const BuildParams& params)
 
     // XXX Disable splitting
     BuildParams sparams = params;
+    sparams.doMulticore = true;
     sparams.splitAlpha = FW_F32_MAX;
 
     m_root = SplitBVHBuilder(*this, sparams).run();
+    //m_root = RandomBVHBuilder(*this, sparams, true).run();
 
-	m_platform.setLeafPreferences(oldMinLeafSize, oldMaxLeafSize);
+    m_platform.setLeafPreferences(oldMinLeafSize, oldMaxLeafSize);
 
 #if 0
-	// XXX Prune Tree
-	m_root->computeSubtreeValues(m_platform, m_root->getArea());
-	while (dynamic_cast<InnerNode*>(m_root)->m_children[0]->m_tris >= 3)
-		m_root = dynamic_cast<InnerNode*>(m_root)->m_children[0];
-	m_root->computeSubtreeValues(m_platform, m_root->getArea());
+    // XXX Prune Tree
+    m_root->computeSubtreeValues(m_platform, m_root->getArea());
+    while (dynamic_cast<InnerNode*>(m_root)->m_children[0]->m_tris >= 3)
+        m_root = dynamic_cast<InnerNode*>(m_root)->m_children[0];
+    m_root->computeSubtreeValues(m_platform, m_root->getArea());
 
-	printTree(m_root);
+    printTree(m_root);
 #endif
 
-	m_root->computeSubtreeValues(m_platform, m_root->getArea());
+    m_root->computeSubtreeValues(m_platform, m_root->getArea());
 
-	if (params.enablePrints) {
-		printf("BVH: Scene bounds: (%.1f,%.1f,%.1f) - (%.1f,%.1f,%.1f)\n", m_root->m_bounds.min().x, m_root->m_bounds.min().y, m_root->m_bounds.min().z,
-			m_root->m_bounds.max().x, m_root->m_bounds.max().y, m_root->m_bounds.max().z);
-		printf("top-down sah: %.6f\n", m_root->m_sah);
-	}
-
-    Refine::RefineParams rparams;
-    rparams.nTrLeaves = 7;
-    rparams.freezeThreshold = 6;
-    rparams.maxLoops = 1;
-    rparams.treeletEpsilon = 1e-8f;
-    rparams.treeletHeuristic = Refine::TreeletHeur::TREELET_CYCLE;
-    Refine Ref(*this, params, rparams);
-
-    BRefine::BRefineParams bparams;
-    BRefine BRef(*this, params, bparams);
-
-    for(int x=0; x<100; x++)
-    {
-        BRef.run();
-
-        Ref.run();
+    if (params.enablePrints) {
+        printf("BVH: Scene bounds: (%.1f,%.1f,%.1f) - (%.1f,%.1f,%.1f) ", m_root->m_bounds.min().x, m_root->m_bounds.min().y, m_root->m_bounds.min().z,
+            m_root->m_bounds.max().x, m_root->m_bounds.max().y, m_root->m_bounds.max().z);
+        float te = Ref.getTimer().end();
+        printf("sah=%.6f tt=%f t=%f\n", m_root->m_sah, Ref.getTimer().getTotal(), te);
     }
-    printf("Collapse1\n");
-    Ref.collapseLeaves();
-    printf("Collapse2\n");
 
-	m_root->computeSubtreeValues(m_platform, m_root->getArea(), true);
-	if (params.enablePrints)
-		printf("leaf collapse sah: %.6f\n", m_root->m_sah);
+    // Ref.runExtremeTRBVH();
+    // Ref.runExtremeBittner();
+    // Ref.runTraditionalBittner();
+    // Ref.runBestNoSplitsPrimPerLeaf();
+    // Ref.runBestSplitsPrimPerLeaf();
+    Ref.runQuickAndClean();
+    // Ref.runTest();
 
-	if (params.stats)
+    m_root->computeSubtreeValues(m_platform, m_root->getArea(), false, false);
+    printf("Final sah=%.6f tt=%f t=%f\n", m_root->m_sah, Ref.getTimer().getTotal(), Ref.getTimer().end());
+
+    if (params.stats)
     {
         params.stats->SAHCost           = m_root->m_sah;
         params.stats->branchingFactor   = 2;

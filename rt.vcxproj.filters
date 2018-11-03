@@ -13,6 +13,9 @@
     <Filter Include="ray">
       <UniqueIdentifier>{3920db06-697c-4abf-a3ec-ed1c06b94c0c}</UniqueIdentifier>
     </Filter>
+    <Filter Include="bvhcmpr">
+      <UniqueIdentifier>{2735ad35-61fc-4ff4-93e1-ff3cfd67c837}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\rt\bvh\BVH.cpp">
@@ -48,6 +51,24 @@
     <ClCompile Include="src\rt\App.cpp" />
     <ClCompile Include="src\rt\Scene.cpp" />
     <ClCompile Include="src\rt\Util.cpp" />
+    <ClCompile Include="src\rt\bvhcmpr\CmpNode.cpp">
+      <Filter>bvhcmpr</Filter>
+    </ClCompile>
+    <ClCompile Include="src\rt\bvhcmpr\SGPUBVHCompressor.cpp">
+      <Filter>bvhcmpr</Filter>
+    </ClCompile>
+    <ClCompile Include="src\rt\bvhcmpr\Refine.cpp">
+      <Filter>bvhcmpr</Filter>
+    </ClCompile>
+    <ClCompile Include="src\rt\bvh\RandomBVHBuilder.cpp">
+      <Filter>bvh</Filter>
+    </ClCompile>
+    <ClCompile Include="src\rt\bvhcmpr\TRefine.cpp">
+      <Filter>bvhcmpr</Filter>
+    </ClCompile>
+    <ClCompile Include="src\rt\bvhcmpr\BRefine.cpp">
+      <Filter>bvhcmpr</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\rt\bvh\BVH.hpp">
@@ -95,6 +116,24 @@
     <ClInclude Include="src\rt\App.hpp" />
     <ClInclude Include="src\rt\Scene.hpp" />
     <ClInclude Include="src\rt\Util.hpp" />
+    <ClInclude Include="src\rt\bvhcmpr\CmpNode.hpp">
+      <Filter>bvhcmpr</Filter>
+    </ClInclude>
+    <ClInclude Include="src\rt\bvhcmpr\SGPUBVHCompressor.hpp">
+      <Filter>bvhcmpr</Filter>
+    </ClInclude>
+    <ClInclude Include="src\rt\bvhcmpr\Refine.hpp">
+      <Filter>bvhcmpr</Filter>
+    </ClInclude>
+    <ClInclude Include="src\rt\bvh\RandomBVHBuilder.hpp">
+      <Filter>bvh</Filter>
+    </ClInclude>
+    <ClInclude Include="src\rt\bvhcmpr\TRefine.hpp">
+      <Filter>bvhcmpr</Filter>
+    </ClInclude>
+    <ClInclude Include="src\rt\bvhcmpr\BRefine.hpp">
+      <Filter>bvhcmpr</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CustomBuildStep Include="src\rt\cuda\RendererKernels.cu">

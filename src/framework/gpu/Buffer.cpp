@@ -30,9 +30,6 @@
 
 using namespace FW;
 
-// Added because a lot of the CUDA driver API functions are deprecated and I don't care.
-#pragma warning(disable : 4996)
-
 //------------------------------------------------------------------------
 
 #define FW_IO_BUFFER_SIZE 65536
@@ -315,7 +312,7 @@ void Buffer::setOwner(Module module, bool modify, bool async, CUstream cudaStrea
 
         if ((m_dirty & Cuda) != 0)
         {
-            validateCPU(false, NULL, validSize);
+            validatecpu(false, NULL, validSize);
             if ((m_exists & CPU) != 0 && validSize)
                 memcpyHtoD(m_cudaPtr, m_cpuPtr, (U32)validSize, async, cudaStream);
             m_dirty &= ~Cuda;

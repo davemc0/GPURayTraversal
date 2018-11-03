@@ -32,14 +32,12 @@
 #include "bvh/RandomBVHBuilder.hpp"
 #include "bvhcmpr/Refine.hpp"
 
-using namespace FW;
+//#include <iostream>
 
-extern void testThrust();
+using namespace FW;
 
 BVH::BVH(Scene* scene, const Platform& platform, const BuildParams& params)
 {
-    testThrust();
-
     FW_ASSERT(scene);
     m_scene = scene;
     m_platform = platform;

@@ -444,10 +444,12 @@ FW_DLL_DECLARE_RETV(BOOL,       WINAPI,     wglGetPixelFormatAttribivARB,       
 // WinBase
 //------------------------------------------------------------------------
 
-FW_DLL_IMPORT_VOID(void,        WINAPI,     InitializeConditionVariable,            (PCONDITION_VARIABLE ConditionVariable), (ConditionVariable))
-FW_DLL_IMPORT_RETV(BOOL,        WINAPI,     SleepConditionVariableCS,               (PCONDITION_VARIABLE ConditionVariable, PCRITICAL_SECTION CriticalSection, DWORD dwMilliseconds), (ConditionVariable, CriticalSection, dwMilliseconds))
-FW_DLL_IMPORT_VOID(void,        WINAPI,     WakeAllConditionVariable,               (PCONDITION_VARIABLE ConditionVariable), (ConditionVariable))
-FW_DLL_IMPORT_VOID(void,        WINAPI,     WakeConditionVariable,                  (PCONDITION_VARIABLE ConditionVariable), (ConditionVariable))
+// Somehow when I turn rt.vcxproj into a CUDA project it includes kernel32.lib, which causes these to be a duplicate definition
+// (even though depends.exe says we're already using kernel32.dll in the exe, even without CUDA.
+//FW_DLL_IMPORT_VOID(void,        WINAPI,     InitializeConditionVariable,            (PCONDITION_VARIABLE ConditionVariable), (ConditionVariable))
+//FW_DLL_IMPORT_RETV(BOOL,        WINAPI,     SleepConditionVariableCS,               (PCONDITION_VARIABLE ConditionVariable, PCRITICAL_SECTION CriticalSection, DWORD dwMilliseconds), (ConditionVariable, CriticalSection, dwMilliseconds))
+//FW_DLL_IMPORT_VOID(void,        WINAPI,     WakeAllConditionVariable,               (PCONDITION_VARIABLE ConditionVariable), (ConditionVariable))
+//FW_DLL_IMPORT_VOID(void,        WINAPI,     WakeConditionVariable,                  (PCONDITION_VARIABLE ConditionVariable), (ConditionVariable))
 
 //------------------------------------------------------------------------
 // WinMM

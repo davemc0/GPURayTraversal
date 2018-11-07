@@ -8,6 +8,8 @@
 
 #include <algorithm>
 
+#define SHOWFUNC() printf("Optimizing with %s algorithm\n", __func__)
+
 namespace FW
 {
 
@@ -29,8 +31,22 @@ namespace FW
         return ta;
     }
 
+    void Refine::run()
+    {
+        runBestAdversarial();
+        // runExtremeTRBVH();
+        // runBestSplitsLeafCollapse();
+        // runExtremeBittner();
+        // runTraditionalBittner();
+        // runBestNoSplitsPrimPerLeaf();
+        // runBestSplitsPrimPerLeaf();
+        // runQuickAndClean();
+        // runTest();
+    }
+
     void Refine::runBestAdversarial()
     {
+        SHOWFUNC();
         TRefine::Params tparams;
         tparams.nTrLeaves = 6;
         tparams.freezeThreshold = 2;
@@ -65,8 +81,10 @@ namespace FW
 
             if (m_bvh.getRoot()->m_sah < 1000.0f) {
                 bparams.timeBudget = max(10.f, ta);
+
                 BRef.run();
                 bparams.batchSize *= 1.2f;
+                bparams.priorityMetric = static_cast<BRefine::PriorityHeur>((bparams.priorityMetric + 1) % BRefine::PriorityHeur::PRIORITY_CYCLE);
 
                 checkTree(false, false);
             }
@@ -75,17 +93,19 @@ namespace FW
                 collapseLeaves();
             }
 
-            if (m_progressTimer.getTotal() > 360.0f)
+            if (m_progressTimer.getTotal() > 3600.0f)
                 break;
         }
     }
 
     void Refine::runBestOrderedRandom()
     {
+        SHOWFUNC();
     }
 
     void Refine::runBestNoSplitsPrimPerLeaf()
     {
+        SHOWFUNC();
         TRefine::Params tparams;
         tparams.nTrLeaves = 7;
         tparams.freezeThreshold = 5;
@@ -105,14 +125,14 @@ namespace FW
             TRef.run();
             checkTree(false, false);
             bparams.maxLoops = 5;
-            bparams.chooseRandomNode = false;
+
             BRef.run();
             checkTree(false, false);
             TRef.run();
             TRef.run();
             checkTree(true, true);
             bparams.maxLoops = 4;
-            bparams.chooseRandomNode = true;
+
             BRef.run();
             checkTree(true, true);
             TRef.run();
@@ -127,10 +147,12 @@ namespace FW
 
     void Refine::runBestNoSplitsLeafCollapse()
     {
+        SHOWFUNC();
     }
 
     void Refine::runBestSplitsPrimPerLeaf()
     {
+        SHOWFUNC();
         float timeBudget = max(7.f, getTimer().getElapsed() * 2.f); // Spend as much on refinement as on build
 
         TRefine::Params tparams;
@@ -154,7 +176,6 @@ namespace FW
 
             bparams.maxLoops = 1;
             bparams.removeRandomChild = false;
-            bparams.chooseRandomNode = false;
             BRef.run();
 
             TRef.run();
@@ -162,7 +183,6 @@ namespace FW
 
             bparams.maxLoops = 1;
             bparams.removeRandomChild = true;
-            bparams.chooseRandomNode = true;
             BRef.run();
 
             TRef.run();
@@ -177,23 +197,66 @@ namespace FW
 
     void Refine::runBestSplitsLeafCollapse()
     {
-    }
-
-    void Refine::runExtremeBittner()
-    {
+        SHOWFUNC();
+        // Ignore the function name.
+        // This is all Bittner, followed by one TRBVH to show that Bittner hits a local minimum.
         BRefine::Params bparams;
-        bparams.maxLoops = 10;
-        bparams.batchSize = 0.01f;
-        bparams.timeBudget = 10.0f;
+        bparams.maxLoops = 3;
+        bparams.batchSize = 0.02f;
+        bparams.timeBudget = 0.0f;
+        bparams.nodesToRemove = 2;
+        bparams.priorityMetric = BRefine::PriorityHeur::PRIORITY_MIN_AND_SUM;
         BRefine BRef(*this, bparams);
 
         for (int x = 0; x < 10000; x++) {
             BRef.run();
             bparams.batchSize *= 1.1f;
+            if (bparams.batchSize > 0.1f) bparams.batchSize = 0.1f;
+
+            // checkTree(false, false);
+
+            //if (bparams.priorityMetric == BRefine::PriorityHeur::PRIORITY_CYCLE)
+            bparams.priorityMetric = static_cast<BRefine::PriorityHeur>((bparams.priorityMetric + 1) % BRefine::PriorityHeur::PRIORITY_CYCLE);
+
+            if (m_progressTimer.getTotal() > 300.0f)
+                break;
+        }
+
+        TRefine::Params tparams;
+        tparams.nTrLeaves = 7;
+        tparams.freezeThreshold = 3;
+        tparams.maxLoops = 1;
+        tparams.treeletEpsilon = 1e-4f;
+        tparams.treeletHeuristic = TRefine::TreeletHeur::TREELET_GREATER;
+        TRefine TRef(*this, tparams);
+
+        TRef.run();
+        checkTree(false, false);
+        collapseLeaves();
+    }
+
+    void Refine::runExtremeBittner()
+    {
+        SHOWFUNC();
+        BRefine::Params bparams;
+        bparams.maxLoops = 5;
+        bparams.batchSize = 0.001f;
+        bparams.timeBudget = 0.0f;
+        bparams.nodesToRemove = 2;
+        bparams.priorityMetric = BRefine::PriorityHeur::PRIORITY_ALL_THREE;
+        BRefine BRef(*this, bparams);
+
+        for (int x = 0; x < 10000; x++) {
+            BRef.run();
+            bparams.batchSize *= 1.1f;
+            if (bparams.batchSize > 0.1f) bparams.batchSize = 0.1f;
 
             checkTree(false, false);
 
-            if (m_progressTimer.getTotal() > 180.0f)
+            //if (bparams.priorityMetric == BRefine::PriorityHeur::PRIORITY_CYCLE)
+            bparams.priorityMetric = static_cast<BRefine::PriorityHeur>((bparams.priorityMetric + 1) % BRefine::PriorityHeur::PRIORITY_CYCLE);
+
+            if (m_progressTimer.getTotal() > 600.0f)
                 break;
         }
 
@@ -202,6 +265,7 @@ namespace FW
 
     void Refine::runTraditionalBittner()
     {
+        SHOWFUNC();
         BRefine::Params bparams;
         bparams.maxLoops = 100000;
         bparams.batchSize = 0.01f;
@@ -220,6 +284,7 @@ namespace FW
 
     void Refine::runExtremeTRBVH()
     {
+        SHOWFUNC();
         TRefine::Params tparams;
         tparams.nTrLeaves = 7;
         tparams.freezeThreshold = 7;
@@ -235,10 +300,12 @@ namespace FW
 
     void Refine::runGrowingTRBVH()
     {
+        SHOWFUNC();
     }
 
     void Refine::runQuickAndClean()
     {
+        SHOWFUNC();
         TRefine::Params tparams;
         tparams.nTrLeaves = 7;
         tparams.freezeThreshold = 4;
@@ -247,24 +314,23 @@ namespace FW
         tparams.treeletHeuristic = TRefine::TreeletHeur::TREELET_GREATER;
         TRefine TRef(*this, tparams);
 
-        TRef.run();
-
         BRefine::Params bparams;
         bparams.maxLoops = 3;
-        bparams.batchSize = 0.002f;
+        bparams.batchSize = 0.02f;
         bparams.timeBudget = 0.0f;
         bparams.nodesToRemove = 2;
         bparams.removeRandomChild = false;
-        bparams.chooseRandomNode = false;
         BRefine BRef(*this, bparams);
+
+        TRef.run();
 
         checkTree(false, true);
 
         BRef.run();
 
-        checkTree(false, true);
-
         TRef.run();
+
+        checkTree(false, true);
 
         BRef.run();
 
@@ -275,6 +341,7 @@ namespace FW
 
     void Refine::runTest()
     {
+        SHOWFUNC();
     }
 
     // Returns treelet root node so it can be attached to parent

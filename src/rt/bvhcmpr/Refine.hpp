@@ -15,6 +15,17 @@ namespace FW
         Refine(BVH& bvh);
         ~Refine(void);
 
+        void run();
+
+        BVH& getBVH() { return m_bvh; }
+        Timer& getTimer() { return m_progressTimer; }
+
+        static const U32 LEAF_FLAG = 0x80000000;
+
+    private:
+        Refine(const Refine&); // forbidden
+        Refine& operator=(const Refine&); // forbidden
+
         void runBestAdversarial();
         void runBestOrderedRandom();
         void runBestNoSplitsPrimPerLeaf();
@@ -27,15 +38,6 @@ namespace FW
         void runGrowingTRBVH();
         void runQuickAndClean();
         void runTest();
-
-        BVH& getBVH() { return m_bvh; }
-        Timer& getTimer() { return m_progressTimer; }
-
-        static const U32 LEAF_FLAG = 0x80000000;
-
-    private:
-        Refine(const Refine&); // forbidden
-        Refine& operator=(const Refine&); // forbidden
 
         template<class Pr>
         void formTreeletPred(BVHNode* troot, int nTrLeaves, std::vector<BVHNode*>& internals, std::vector<BVHNode*>& leaves, Pr Pred);

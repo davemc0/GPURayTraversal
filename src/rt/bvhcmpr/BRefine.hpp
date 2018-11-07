@@ -13,13 +13,23 @@ namespace FW
     {
     public:
 
+        enum PriorityHeur {
+            PRIORITY_AREA = 0,
+            PRIORITY_MIN_RATIO = 1,
+            PRIORITY_SUM_RATIO = 2,
+            PRIORITY_ALL_THREE = 3,
+            PRIORITY_MIN_AND_SUM = 4,
+            PRIORITY_CYCLE = 5,
+            PRIORITY_RANDOM = 6,
+        };
+
         struct Params
         {
+            PriorityHeur priorityMetric = PRIORITY_ALL_THREE;
             int maxLoops = 10;
             float batchSize = 0.01f;
             float timeBudget = 0.0f;
-            float perPassImprovement = 0.0001f; // Abort pass loop if a pass has less than this SAH improvement
-            bool chooseRandomNode = false;
+            float perPassImprovement = 0.0001f; // Abort pass loop if a pass has less than this percentage SAH improvement
             bool removeRandomChild = true;
             int nodesToRemove = 1;
         };
@@ -30,8 +40,6 @@ namespace FW
 
         void run();
 
-        void collapseLeaves();
-
         void setParams(Params& rparams) { m_rparams = rparams; }
 
     private:
@@ -39,14 +47,16 @@ namespace FW
         BRefine& operator=(const BRefine&); // forbidden
 
         void computePriority(BVHNode* node);
-
-        bool refineNode(BVHNode* node); // The recursive call; returns true if it made progress
-
         void remove1ForOpt(BVHNode* node); // Mine
         void remove2ForOpt(BVHNode* node); // Bittner
         void insertForOpt(BVHNode* node);
-        void planRemoveReplace(BVHNode * node);
         BVHNode* findInsertTarget(BVHNode* node);
+
+        // New algorithm
+        void newComputePriority(BVHNode* node);
+        OptPair_T newFindInsertTarget(BVHNode* node, BVHNode* treeletTop);
+        float planRemoveReplace(BVHNode * node);
+        OptPair_T computeModSAH(BVHNode* node, AABB modBounds, float modSAH, bool isShrink);
 
     private:
         BVH& m_bvh;

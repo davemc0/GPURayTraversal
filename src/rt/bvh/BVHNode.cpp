@@ -147,6 +147,17 @@ void BVHNode::computeValues(const Platform& p, const float rootArea, bool recomp
     FW_ASSERT(m_tris > 0);
 }
 
+S32 BVHNode::getChildIndex(const BVHNode* ch) const
+{
+    for (int ni = 0; ni < getNumChildNodes(); ni++)
+        if (getChildNode(ni) == ch)
+            return ni;
+
+    FW_ASSERT(0 && "Neither child is ch");
+
+    return -1;
+}
+
 //-------------------------------------------------------------
 
 void assignIndicesDepthFirstRecursive( BVHNode* node, S32& index, bool includeLeafNodes )

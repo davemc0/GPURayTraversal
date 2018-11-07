@@ -32,9 +32,9 @@
 #include "bvh/RandomBVHBuilder.hpp"
 #include "bvhcmpr/Refine.hpp"
 
-//#include <iostream>
-
 using namespace FW;
+
+extern float testThrust();
 
 BVH::BVH(Scene* scene, const Platform& platform, const BuildParams& params)
 {
@@ -49,7 +49,13 @@ BVH::BVH(Scene* scene, const Platform& platform, const BuildParams& params)
 
     Ref.getTimer().start();
 
-	// Have one prim per leaf in SBVH, then refine it later
+#if 0
+    float tempResult = testThrust();
+    printf("thrust result=%f time=%f\n", tempResult, Ref.getTimer().end());
+    exit(0);
+#endif
+
+    // Have one prim per leaf in SBVH, then refine it later
 	int oldMinLeafSize = m_platform.getMinLeafSize();
 	int oldMaxLeafSize = m_platform.getMaxLeafSize();
 	m_platform.setLeafPreferences(1, 1);
@@ -83,13 +89,7 @@ BVH::BVH(Scene* scene, const Platform& platform, const BuildParams& params)
         printf("sah=%.6f tt=%f t=%f\n", m_root->m_sah, Ref.getTimer().getTotal(), te);
     }
 
-    // Ref.runExtremeTRBVH();
-    // Ref.runExtremeBittner();
-    // Ref.runTraditionalBittner();
-    // Ref.runBestNoSplitsPrimPerLeaf();
-    // Ref.runBestSplitsPrimPerLeaf();
-    Ref.runQuickAndClean();
-    // Ref.runTest();
+    Ref.run();
 
     m_root->computeSubtreeValues(m_platform, m_root->getArea(), false, false);
     printf("Final sah=%.6f tt=%f t=%f\n", m_root->m_sah, Ref.getTimer().getTotal(), Ref.getTimer().end());

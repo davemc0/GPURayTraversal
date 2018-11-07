@@ -30,81 +30,174 @@ namespace FW
 
 
 
-
-
-
-    // My algorithm
-    // Find a treelet that's in the wrong place
-    void BRefine::planRemoveReplace(BVHNode* node)
+    // Compute the SAH of the subtree that will change size from adding or removing a node
+    // node - a node whose AABB will change
+    // modBounds - the proposed new AABB of that node
+    // modSAH - The SAH of node (whole treelet) if we do the change
+    // Returns a pair containing:
+    //   the highest ancestor whose area will change if the proposed change were done
+    //   and the new SAH of that ancestor's whole treelet
+    OptPair_T BRefine::computeModSAH(BVHNode* node, AABB modBounds, float modSAH, bool isShrink)
     {
-        // If this node were removed how would the SAH change?
-
         FW_ASSERT(!node->isLeaf());
-
-        if (node->m_parent == nullptr)
-            return;
-
         FW_ASSERT(node->m_parent);
 
-        // Try pairing each child with node's sibling
+        // modSAH and modBounds now represent modified node's subtree
+        BVHNode* mod = node;
+        BVHNode* dad = mod->m_parent;
+        float lastModSAH = modSAH;
+        while (dad) { // Generalize this test for insert / delete
+            int ni = dad->getChildIndex(mod);
+            FW_ASSERT(ni == 0 || ni == 1);
+            int si = 1 - ni;
+            BVHNode* sib = dad->getChildNode(si);
 
-        BVHNode* dad = node->m_parent;
-        InnerNode* dadi = dynamic_cast<InnerNode*>(dad);
-        InnerNode* nodei = dynamic_cast<InnerNode*>(node);
+            lastModSAH = modSAH;
 
-        int ni = 0;
-        for (ni = 0; ni < dad->getNumChildNodes(); ni++)
-            if (dad->getChildNode(ni) == node)
+            // modBounds will become dad's new bounds
+            // Add in sib
+            modBounds.grow(sib->m_bounds);
+            modSAH += sib->m_sah;
+
+            // dad's own cost
+            modSAH += m_platform.getCost(dad->getNumChildNodes(), 0) * modBounds.area() / m_rootArea;
+
+            printf("%c", (modBounds.area() < dad->m_bounds.area()) ? '<' : (modBounds.area() > dad->m_bounds.area()) ? '>' : '=');
+            printf("newA=%f oldA=%f newSAH=%f oldSAH=%f\n", modBounds.area(), dad->m_bounds.area(), modSAH, dad->m_sah);
+
+            if(isShrink)
+                FW_ASSERT(modBounds.area() <= dad->m_bounds.area());
+            else
+                FW_ASSERT(modBounds.area() >= dad->m_bounds.area());
+
+            if (!((isShrink && modBounds.area() < dad->m_bounds.area()) ||
+                 (!isShrink && modBounds.area() > dad->m_bounds.area())))
+                // Do the compare before moving the pointers up so that we can return the highest changed node, rather than its parent
                 break;
 
-        FW_ASSERT(ni == 0 || ni == 1);
-        FW_ASSERT(dadi->m_children[ni] == node);
-
-        BVHNode* sib = dadi->m_children[1 - ni];
-
-        // Which is the best child to leave here? Choose the one with smallest area.
-        // Is this the best? What about affect on ancestors? What about where we insert it?
-        int bestI = rand() % 1;
-        float bestA = FW_F32_MAX;
-        if (m_rparams.removeRandomChild)
-            for (int i = 0; i < node->getNumChildNodes(); i++) {
-                BVHNode* ch = node->getChildNode(i);
-                AABB sibch = sib->m_bounds + ch->m_bounds;
-                if (sibch.area() < bestA) {
-                    bestI = i;
-                    bestA = sibch.area();
-                }
-            }
-        FW_ASSERT(bestI == 0 || bestI == 1);
-        int badI = 1 - bestI;
-        nodei->m_children[badI]->m_parent = nullptr;
-
-        OptPair_T pr(nodei->m_children[badI]->getArea(), nodei->m_children[badI]);
-        m_toInsert.push_back(pr);
-
-        dadi->m_children[ni] = nodei->m_children[bestI];
-        nodei->m_children[bestI]->m_parent = dad;
-
-        // Tag the node as unused and toss it.
-        // Don't delete it because it may be in the toOptimize list and will get referenced later.
-        node->m_parent = nullptr;
-        m_toRecycle.push_back(OptPair_T(0.f, node));
-
-        // Recompute its ancestors
-        BVHNode* cur = dad;
-        while (cur) {
-            FW_ASSERT(cur->m_parent || cur == m_bvh.getRoot());
-            //float oldArea = cur->getArea();
-            cur->computeValues(m_platform, m_rootArea, true, true);
-            //float newArea = cur->getArea();
-            cur = cur->m_parent;
-            //printf("%c", (newArea < oldArea) ? '<' : (newArea > oldArea) ? '>' : '=');
+            mod = dad;
+            dad = mod->m_parent;
         }
-        //printf("\n");
+
+        OptPair_T treeletTopPr(lastModSAH, mod);
+        return treeletTopPr;
     }
 
+    OptPair_T BRefine::newFindInsertTarget(BVHNode* node, BVHNode* treeletTop)
+    {
+        FW_ASSERT(m_toSearch.size() == 0);
+        float nArea = node->getArea();
+        OptPair_T pr(0.f, m_bvh.getRoot());
+        m_toSearch.push_back(pr);
 
+        float cBest = FW_F32_MAX; // Want to set this to the induced cost saved by removing it.
+        BVHNode* xBest = nullptr;
 
+        while (m_toSearch.size() > 0) {
+            BVHNode* x = m_toSearch.back().second;
+            float cIx = m_toSearch.back().first; // Induced cost of placing node as sibling of x
+            m_toSearch.pop_back();
+            FW_ASSERT(x);
+            if (cIx + nArea >= cBest) // Our best branch isn't good enough so we're done.
+                // cIx + nArea is the lower bound of inserting at or below x. nArea is lower bound of x U n area.
+                break;
+
+            if (x == treeletTop) {
+                BVHNode* nextBest = m_toSearch.size() > 1 ? m_toSearch[1].second : nullptr;
+                float nextBestC = m_toSearch.size() > 1 ? m_toSearch[1].first : FW_F32_MAX;
+                printf("Best place is home: 0x%08x 0x%08x %d %f; next best is 0x%08x at %f\n", node, treeletTop, m_toSearch.size(), cIx, nextBest, nextBestC);
+                continue;
+            }
+
+            // Compute total cost of merging node with x
+            float cD = (x->m_bounds + node->m_bounds).area(); // Convert to SAH by multiplying by traversal cost and divide by rootArea
+            float cT = cIx + cD; // Total cost to make node a sibling of x
+            if (cT < cBest) {
+                cBest = cT;
+                xBest = x;
+            }
+
+            // Calculate the induced cost for children of x
+            float cI = cT - x->m_bounds.area();
+
+            // Are children of x candidates?
+            if (cI + nArea < cBest && !x->isLeaf()) {
+                // Can't hoist because iterator becomes invalid after insert
+                auto insBefore = std::find_if(m_toSearch.begin(), m_toSearch.end(), [cI](const OptPair_T& a) { return cI < a.first; });
+                size_t iB = insBefore - m_toSearch.begin();
+                for (int i = 0; i < x->getNumChildNodes(); i++) {
+                    OptPair_T pc(cI, x->getChildNode(i));
+                    m_toSearch.insert(m_toSearch.begin() + iB, pc);
+                }
+            }
+        }
+
+        // If xBest is null it means that treeletTop is root; have to find a way to insert in treeletTop.
+        FW_ASSERT(xBest);
+
+        m_toSearch.resize(0);
+
+        OptPair_T rt(cBest, xBest);
+        return rt;
+    }
+
+    // Find a treelet that's in the wrong place
+    float BRefine::planRemoveReplace(BVHNode* node)
+    {
+        // If this node were removed how would the SAH change?
+        if (node->m_parent == nullptr || node->m_parent->m_parent == nullptr)
+            return 0;
+
+        FW_ASSERT(!node->isLeaf());
+        FW_ASSERT(node->m_parent);
+        FW_ASSERT(node->m_parent->m_parent);
+
+        InnerNode* dadi = dynamic_cast<InnerNode*>(node->m_parent);
+        int ni = dadi->getChildIndex(node);
+        int si = 1 - ni;
+        FW_ASSERT(ni == 0 || ni == 1);
+        FW_ASSERT(dadi->m_children[ni] == node);
+        BVHNode* sib = dadi->m_children[si];
+
+        // No changes have been made. We just know who the players are.
+        // Replace dad with sib. Remove node and dad.
+        OptPair_T result = computeModSAH(dadi, sib->m_bounds, sib->m_sah, true);
+
+        printf("If we remove 0x%08x treelet top is 0x%08x SAH change: %g - %g = %g oldA=%f\n",
+            node, result.second, result.first, result.second->m_sah, result.first - result.second->m_sah,
+            result.second->getArea());
+
+        OptPair_T fresult = newFindInsertTarget(node, result.second);
+
+        // XXX Need to deal with unequal costs of root and internal nodes.
+        float dSAH = m_platform.getCost(fresult.second->getNumChildNodes(), 0) * fresult.first / m_rootArea;
+
+        printf("If we reinsert 0x%08x as sibling of 0x%08x @ %g SAH change: %g (%g)\n", node, fresult.second, fresult.second->m_sah, dSAH, fresult.first);
+
+        // Place it next to x and recompute ancestors of x
+        AABB xPlusN = fresult.second->m_bounds + node->m_bounds;
+        float xPlusNSAH = fresult.second->m_sah + node->m_sah + m_platform.getCost(fresult.second->getNumChildNodes(), 0) * xPlusN.area() / m_rootArea;
+        OptPair_T iresult = computeModSAH(fresult.second, xPlusN, xPlusNSAH, false);
+
+        printf("Reinsert treelet top is 0x%08x SAH change: SAH change: %g - %g = %g oldA=%f\n\n", 
+            iresult.second, iresult.first, iresult.second->m_sah, iresult.first - iresult.second->m_sah, iresult.second->getArea());
+
+        return result.first;
+    }
+
+    void BRefine::newComputePriority(BVHNode* node)
+    {
+        if (node->isLeaf())
+            return;
+
+        for (int i = 0; i < node->getNumChildNodes(); i++) {
+            newComputePriority(node->getChildNode(i));
+        }
+
+        float dSAH = planRemoveReplace(node);
+        OptPair_T pr(dSAH, node);
+        m_toOptimize.push_back(pr);
+    }
 
 
 
@@ -137,10 +230,27 @@ namespace FW
             minChArea = min(minChArea, na);
         }
 
-        //float metric = a;
-        //float metric = a / sumChArea;
-        //float metric = a / minChArea;
-        float metric = a * a * a / (sumChArea * minChArea);
+        float metric = 0;
+        switch (m_rparams.priorityMetric) {
+        case PRIORITY_AREA:
+            metric = a;
+            break;
+        case PRIORITY_MIN_RATIO:
+            metric = a / minChArea;
+            break;
+        case PRIORITY_SUM_RATIO:
+            metric = a / sumChArea;
+            break;
+        case PRIORITY_MIN_AND_SUM:
+            metric = a * a / (sumChArea * minChArea);
+            break;
+        case PRIORITY_ALL_THREE:
+            metric = a * a * a / (sumChArea * minChArea);
+            break;
+        case PRIORITY_RANDOM:
+            metric = (float)(rand() * rand());
+            break;
+        }
 
         OptPair_T pr(metric, node);
         m_toOptimize.push_back(pr);
@@ -236,7 +346,7 @@ namespace FW
         // Is this the best? What about affect on ancestors? What about where we insert it?
         int bestI = rand() % 1;
         float bestA = FW_F32_MAX;
-        if (m_rparams.removeRandomChild)
+        if (!m_rparams.removeRandomChild)
             for (int i = 0; i < node->getNumChildNodes(); i++) {
                 BVHNode* ch = node->getChildNode(i);
                 AABB sibch = sib->m_bounds + ch->m_bounds;
@@ -288,7 +398,7 @@ namespace FW
             float cIx = m_toSearch.back().first; // Induced cost of placing node as sibling of x
             m_toSearch.pop_back();
             FW_ASSERT(x);
-            if (cIx + nArea >= cBest) // Our best branch isn't good enough => abort
+            if (cIx + nArea >= cBest) // Our best branch isn't good enough so we're done.
                 break;
 
             // Compute total cost of merging node with x
@@ -384,6 +494,7 @@ namespace FW
 
             // Compute node priorities
             m_toOptimize.resize(0);
+            newComputePriority(m_bvh.getRoot());
             computePriority(m_bvh.getRoot());
 
             // Sort nodes by priority
@@ -393,11 +504,7 @@ namespace FW
 
             for (int i = 0; i < batchSize; i++) {
                 // Remove a node
-                int ii = i;
-                // if (iter > 30 && (iter & 1))
-                if (m_rparams.chooseRandomNode)
-                    ii = rand() % m_toOptimize.size();
-                BVHNode* node = m_toOptimize[ii].second;
+                BVHNode* node = m_toOptimize[i].second;
 
                 // printf("%d Removing node 0x%08x weight=%f area=%f\n", i, (U64)node, m_toOptimize[i].first, node->getArea());
                 if (m_rparams.nodesToRemove == 1)
@@ -424,14 +531,15 @@ namespace FW
             float impr = (oldSAH - sah) / sah;
             oldSAH = sah;
 
-            printf("Bitnr %d insert=%d batch=%d worst100=%f worst90=%f rndnd=%d nr=%d rndch=%d ", iter,
-                m_nodesInserted, batchSize, m_toOptimize[0].first, m_toOptimize[size_t(m_toOptimize.size()*0.1f)].first,
-                m_rparams.chooseRandomNode, m_rparams.nodesToRemove, m_rparams.removeRandomChild);
+            printf("Bitnr %d heur=%d insert=%d batch=%d worst100=%f worst90=%f nr=%d rndch=%d ", iter,
+                m_rparams.priorityMetric, m_nodesInserted, batchSize, m_toOptimize[0].first,
+                m_toOptimize[size_t(m_toOptimize.size()*0.1f)].first, m_rparams.nodesToRemove, m_rparams.removeRandomChild);
             printf("dsah=%1.2f%% sah=%.6f tt=%f t=%f\n", 100.f * impr, sah, m_refine.getTimer().getTotal(), m_refine.getTimer().end());
             oldSAH = sah;
 
-            if (timeOut || (impr < m_rparams.perPassImprovement && impr >= 0.f))
-                break;
+            //if (timeOut || (impr < m_rparams.perPassImprovement && impr >= 0.f))
+            if (timeOut || (impr < m_rparams.perPassImprovement))
+                    break;
         }
     }
 
@@ -499,3 +607,7 @@ namespace FW
 // My one-node deletion allows removing children of the root, but the original only allows grandchildren.
 
 // Should try to get Bittner to respect the leaf collapse plan of TRBVH
+
+// On Bittner, cycle through the different heuristics to get nodes that are bad in any way
+
+// Once we know the best place for a node is inside its modified treelet we could do a TRBVH on that treelet.

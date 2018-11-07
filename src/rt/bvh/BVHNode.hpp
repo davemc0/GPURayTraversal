@@ -55,7 +55,7 @@ public:
 	BVHNode() : m_probability(1.f), m_treelet(-1), m_index(-1), m_sah(0), m_tris(0), m_frozen(0), m_parent(nullptr) {}
     virtual bool        isLeaf() const = 0;
     virtual S32         getNumChildNodes() const = 0;
-    virtual BVHNode*    getChildNode(S32 i) const   = 0;
+    virtual BVHNode*    getChildNode(S32 i) const = 0;
     virtual S32         getNumTriangles() const { return 0; }
 
     float       getArea() const     { return m_bounds.area(); }
@@ -82,6 +82,8 @@ public:
     void    assignIndicesBreadthFirst(S32 index=0, bool includeLeafNodes=true);
 
 	void    computeValues(const Platform& p, const float rootArea, bool recomputeBounds, bool resetFrozen);  // Recompute all stats based on child data WITHOUT RECURSING
+    S32     getChildIndex(const BVHNode* ch) const; // Returns the index of child ch in this
+
 };
 
 

@@ -77,6 +77,13 @@ void CudaTracer::setKernel(const String& kernelName)
 
 //------------------------------------------------------------------------
 
+
+void printCounter(CudaModule* module, const char* name)
+{
+    S64 val = *(S64*)module->getGlobal(name).getMutablePtr();
+    printf("%s=%lld ", name, val);
+}
+
 F32 CudaTracer::traceBatch(RayBuffer& rays)
 {
     // No rays => done.
@@ -153,8 +160,23 @@ F32 CudaTracer::traceBatch(RayBuffer& rays)
     int numBlocks = (desiredWarps + blockWarps - 1) / blockWarps;
 
     // Launch.
+    F32 timeElapsed = kernel.launchTimed(numBlocks * blockSize.x * blockSize.y, blockSize);
 
-    return kernel.launchTimed(numBlocks * blockSize.x * blockSize.y, blockSize);
+    static int pCount = 0;
+    if (pCount++ % 100 == 0) {
+        printCounter(module, "g_rayLaunches");
+        printCounter(module, "g_rayBoxTests");
+        printCounter(module, "g_rayTriTests");
+        printCounter(module, "g_rayBoxHits");
+        printCounter(module, "g_rayTriHits");
+        printCounter(module, "g_rayHits");
+        printCounter(module, "g_rayMisses");
+        printCounter(module, "g_stackPushes");
+        printCounter(module, "g_stackPops");
+        printf("\n");
+    }
+
+    return timeElapsed;
 }
 
 //------------------------------------------------------------------------

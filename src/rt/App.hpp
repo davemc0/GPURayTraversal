@@ -103,6 +103,8 @@ private:
 void    listKernels     (Array<String>& kernelNames);
 void    runInteractive  (const Vec2i& frameSize, const String& stateFile);
 
+void runTest();
+
 void runBenchmark(
     const Vec2i&            frameSize,
     const String&           meshFile,

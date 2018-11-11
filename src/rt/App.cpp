@@ -596,6 +596,18 @@ void FW::runInteractive(const Vec2i& frameSize, const String& stateFile)
 
 //------------------------------------------------------------------------
 
+extern float testThrust();
+
+void FW::runTest()
+{
+    ::printf("Running tests\n");
+
+
+    testThrust();
+}
+
+//------------------------------------------------------------------------
+
 void FW::runBenchmark(
     const Vec2i&            frameSize,
     const String&           meshFile,
@@ -749,6 +761,7 @@ void FW::init(void)
 
     bool modeInteractive    = false;
     bool modeBenchmark      = false;
+    bool modeTest           = false;
     bool showHelp           = false;
 
     if (argc < 2)
@@ -761,6 +774,7 @@ void FW::init(void)
         String mode = argv[1];
         if (mode == "interactive")      modeInteractive = true;
         else if (mode == "benchmark")   modeBenchmark = true;
+        else if (mode == "test")        modeTest = true;
         else                            showHelp = true;
     }
 
@@ -894,6 +908,9 @@ void FW::init(void)
 
     if (modeBenchmark)
         runBenchmark(frameSize, meshFile, cameras, kernels, sbvhAlpha, aoRadius, numSamples, sortRays, warmupRepeats, measureRepeats);
+
+    if (modeTest)
+        runTest();
 
     // Handle errors.
 

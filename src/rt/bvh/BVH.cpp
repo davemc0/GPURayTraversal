@@ -63,7 +63,7 @@ BVH::BVH(Scene* scene, const Platform& platform, const BuildParams& params)
     // XXX Disable splitting
     BuildParams sparams = params;
     sparams.doMulticore = true;
-    sparams.splitAlpha = FW_F32_MAX;
+    // sparams.splitAlpha = FW_F32_MAX;
 
     m_root = SplitBVHBuilder(*this, sparams).run();
     //m_root = RandomBVHBuilder(*this, sparams, true).run();

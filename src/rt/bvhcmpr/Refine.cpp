@@ -33,7 +33,8 @@ namespace FW
 
     void Refine::run()
     {
-        runBestAdversarial();
+        runTraditionalTRBVH();
+        // runBestAdversarial();
         // runExtremeTRBVH();
         // runBestSplitsLeafCollapse();
         // runExtremeBittner();
@@ -278,6 +279,24 @@ namespace FW
             if (m_progressTimer.getTotal() > bparams.timeBudget)
                 break;
         }
+
+        collapseLeaves();
+    }
+
+    void Refine::runTraditionalTRBVH()
+    {
+        SHOWFUNC();
+        TRefine::Params tparams;
+        tparams.nTrLeaves = 7;
+        tparams.freezeThreshold = 7;
+        tparams.maxLoops = 3;
+        tparams.treeletEpsilon = 1e-5f;
+        tparams.treeletHeuristic = TRefine::TreeletHeur::TREELET_CYCLE;
+        TRefine TRef(*this, tparams);
+
+        // XXX Need to add gamma
+
+        TRef.run();
 
         collapseLeaves();
     }

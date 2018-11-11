@@ -34,6 +34,7 @@ namespace FW
         void runBestSplitsLeafCollapse();
         void runExtremeBittner();
         void runTraditionalBittner();
+        void runTraditionalTRBVH();
         void runExtremeTRBVH();
         void runGrowingTRBVH();
         void runQuickAndClean();

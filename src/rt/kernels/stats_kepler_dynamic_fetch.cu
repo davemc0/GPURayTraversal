@@ -46,15 +46,15 @@
 
 extern "C" __device__ int g_warpCounter;    // Work counter for persistent threads.
 
-extern "C" __device__ int g_rayLaunches;
-extern "C" __device__ int g_rayBoxTests;
-extern "C" __device__ int g_rayTriTests;
-extern "C" __device__ int g_rayBoxHits;
-extern "C" __device__ int g_rayTriHits;
-extern "C" __device__ int g_rayHits;
-extern "C" __device__ int g_rayMisses;
-extern "C" __device__ int g_stackPushes;
-extern "C" __device__ int g_stackPops;
+extern "C" __device__ unsigned long long g_rayLaunches;
+extern "C" __device__ unsigned long long g_rayBoxTests; 
+extern "C" __device__ unsigned long long g_rayTriTests; 
+extern "C" __device__ unsigned long long g_rayBoxHits;
+extern "C" __device__ unsigned long long g_rayTriHits;
+extern "C" __device__ unsigned long long g_rayHits;
+extern "C" __device__ unsigned long long g_rayMisses;
+extern "C" __device__ unsigned long long g_stackPushes;
+extern "C" __device__ unsigned long long g_stackPops;
 
 //------------------------------------------------------------------------
 
@@ -125,6 +125,8 @@ TRACE_FUNC
 
             // Fetch ray.
 
+            atomicAdd(&g_rayLaunches, 1);
+
             float4 o = FETCH_GLOBAL(rays, rayidx * 2 + 0, float4);
             float4 d = FETCH_GLOBAL(rays, rayidx * 2 + 1, float4);
             origx = o.x;
@@ -162,6 +164,7 @@ TRACE_FUNC
             while (unsigned int(nodeAddr) < unsigned int(EntrypointSentinel))   // functionally equivalent, but faster
             {
                 // Fetch AABBs of the two child nodes.
+                atomicAdd(&g_rayBoxTests, 2);
 
                 const float4 n0xy = tex1Dfetch(t_nodesA, nodeAddr + 0); // (c0.lo.x, c0.hi.x, c0.lo.y, c0.hi.y)
                 const float4 n1xy = tex1Dfetch(t_nodesA, nodeAddr + 1); // (c1.lo.x, c1.hi.x, c1.lo.y, c1.hi.y)
@@ -192,11 +195,13 @@ TRACE_FUNC
 
                 bool traverseChild0 = (c0max >= c0min);
                 bool traverseChild1 = (c1max >= c1min);
+                atomicAdd(&g_rayBoxHits, (traverseChild0?1:0) + (traverseChild1?1:0));
 
                 // Neither child was intersected => pop stack.
 
                 if (!traverseChild0 && !traverseChild1)
                 {
+                    atomicAdd(&g_stackPops, 1);
                     nodeAddr = *(int*)stackPtr;
                     stackPtr -= 4;
                 }
@@ -211,6 +216,7 @@ TRACE_FUNC
 
                     if (traverseChild0 && traverseChild1)
                     {
+                        atomicAdd(&g_stackPushes, 1);
                         if (swp)
                             swap(nodeAddr, cnodes.y);
                         stackPtr += 4;
@@ -220,11 +226,13 @@ TRACE_FUNC
 
                 // First leaf => postpone and continue traversal.
 
+                // nodeAddr < 0 indicates index of a leaf
                 if (nodeAddr < 0 && leafAddr  >= 0)     // Postpone max 1
 //              if (nodeAddr < 0 && leafAddr2 >= 0)     // Postpone max 2
                 {
                     //leafAddr2= leafAddr;          // postpone 2
                     leafAddr = nodeAddr;
+                    atomicAdd(&g_stackPops, 1);
                     nodeAddr = *(int*)stackPtr;
                     stackPtr -= 4;
                 }
@@ -255,6 +263,7 @@ TRACE_FUNC
             {
                 for (int triAddr = ~leafAddr;; triAddr += 3)
                 {
+                    atomicAdd(&g_rayTriTests, 1);
                     // Tris in TEX (good to fetch as a single batch)
                     const float4 v00 = tex1Dfetch(t_trisA, triAddr + 0);
                     const float4 v11 = tex1Dfetch(t_trisA, triAddr + 1);
@@ -289,6 +298,8 @@ TRACE_FUNC
                                 // Record intersection.
                                 // Closest intersection not required => terminate.
 
+                                atomicAdd(&g_rayTriHits, 1);
+
                                 hitT = t;
                                 hitIndex = triAddr;
                                 if (anyHit)
@@ -308,6 +319,7 @@ TRACE_FUNC
                     leafAddr = nodeAddr;
                     if (nodeAddr < 0)
                     {
+                        atomicAdd(&g_stackPops, 1);
                         nodeAddr = *(int*)stackPtr;
                         stackPtr -= 4;
                     }
@@ -323,8 +335,8 @@ TRACE_FUNC
 
         // Remap intersected triangle index, and store the result.
 
-        if (hitIndex == -1) { STORE_RESULT(rayidx, -1, hitT); }
-        else                { STORE_RESULT(rayidx, FETCH_TEXTURE(triIndices, hitIndex, int), hitT); }
+        if (hitIndex == -1) { STORE_RESULT(rayidx, -1, hitT); atomicAdd(&g_rayMisses, 1); }
+        else                { STORE_RESULT(rayidx, FETCH_TEXTURE(triIndices, hitIndex, int), hitT);  atomicAdd(&g_rayHits, 1); }
 
     } while(true);
 }

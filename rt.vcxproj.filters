@@ -165,5 +165,8 @@
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="src\rt\test\kernel.cu" />
+    <CudaCompile Include="src\rt\kernels\stats_kepler_dynamic_fetch.cu">
+      <Filter>kernels</Filter>
+    </CudaCompile>
   </ItemGroup>
 </Project>

@@ -69,6 +69,7 @@
     <ClCompile Include="src\rt\bvh\RandomBVHBuilder.cpp">
       <Filter>bvh</Filter>
     </ClCompile>
+    <ClCompile Include="src\rt\test\testCPP.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\rt\bvh\BVH.hpp">
@@ -134,6 +135,10 @@
     <ClInclude Include="src\rt\bvh\RandomBVHBuilder.hpp">
       <Filter>bvh</Filter>
     </ClInclude>
+    <ClInclude Include="src\rt\test\testCPP.h" />
+    <ClInclude Include="src\rt\bvh\GPUSplitBVHBuilder.hpp">
+      <Filter>bvh</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CustomBuildStep Include="src\rt\cuda\RendererKernels.cu">
@@ -162,11 +167,14 @@
     <None Include="src\rt\kernels\kepler_dynamic_fetch.cu">
       <Filter>kernels</Filter>
     </None>
+    <None Include="src\rt\kernels\stats_kepler_dynamic_fetch.cu">
+      <Filter>kernels</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="src\rt\test\kernel.cu" />
-    <CudaCompile Include="src\rt\kernels\stats_kepler_dynamic_fetch.cu">
-      <Filter>kernels</Filter>
+    <CudaCompile Include="src\rt\bvh\GPUSplitBVHBuilder.cu">
+      <Filter>bvh</Filter>
     </CudaCompile>
   </ItemGroup>
 </Project>

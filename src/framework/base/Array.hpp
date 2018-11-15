@@ -26,7 +26,9 @@
  */
 
 #pragma once
+
 #include "base/Math.hpp"
+#include <cstring>
 
 namespace FW
 {

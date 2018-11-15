@@ -34,6 +34,16 @@ namespace FW
 
 //------------------------------------------------------------------------
 
+//------------------------------------------------------------------------
+// Base templates.
+//------------------------------------------------------------------------
+
+    template <class T>  inline bool equalsArray(const T* ptrA, int sizeA, const T* ptrB, int sizeB);
+    template <class T>  inline U32  hashArray(const T* ptr, int size);
+
+    template <class T>  inline bool equals(const T& a, const T& b) { return equalsBuffer(&a, &b, sizeof(T)); }
+    template <class T>  inline U32  hash(const T& value) { return hashBuffer(&value, sizeof(T)); }
+
 template <class T> class Set
 {
 private:
@@ -187,16 +197,6 @@ inline bool equalsBuffer    (const void* ptrA, const void* ptrB, int size)      
 inline bool equalsBuffer    (const void* ptrA, int sizeA, const void* ptrB, int sizeB)  { return (sizeA == sizeB && memcmp(ptrA, ptrB, sizeA) == 0); }
 U32         hashBuffer      (const void* ptr, int size);
 U32         hashBufferAlign (const void* ptr, int size);
-
-//------------------------------------------------------------------------
-// Base templates.
-//------------------------------------------------------------------------
-
-template <class T>  inline bool equalsArray     (const T* ptrA, int sizeA, const T* ptrB, int sizeB);
-template <class T>  inline U32  hashArray       (const T* ptr, int size);
-
-template <class T>  inline bool equals          (const T& a, const T& b)                { return equalsBuffer(&a, &b, sizeof(T)); }
-template <class T>  inline U32  hash            (const T& value)                        { return hashBuffer(&value, sizeof(T)); }
 
 //------------------------------------------------------------------------
 // Specializations for primitive types.

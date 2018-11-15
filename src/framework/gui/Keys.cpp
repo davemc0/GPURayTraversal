@@ -36,7 +36,7 @@ using namespace FW;
 String FW::unicodeToKey(S32 cp)
 {
     FW_ASSERT(cp >= 0 && cp <= 0x10FFFF);
-    return sprintf("U+%04X", cp);
+    return Sprintf("U+%04X", cp);
 }
 
 //------------------------------------------------------------------------

@@ -28,19 +28,22 @@
 // XXX
 #define FW_ENABLE_ASSERT
 
-#include "bvh/SplitBVHBuilder.hpp"
+#include "bvh/GPUSplitBVHBuilder.hpp"
 #include "base/Sort.hpp"
 
 #include <algorithm>
+
+#if !FW_CUDA10
 #include <execution>
-
-using namespace FW;
-
 const auto parseq = std::execution::par_unseq;
+#define NOPAR 0
+#else
+#define NOPAR 1
+#endif
 
 //------------------------------------------------------------------------
 
-SplitBVHBuilder::SplitBVHBuilder(BVH& bvh, const BVH::BuildParams& params)
+FW::GPUSplitBVHBuilder::GPUSplitBVHBuilder(FW::BVH& bvh, const FW::BVH::BuildParams& params)
 :   m_bvh           (bvh),
     m_platform      (bvh.getPlatform()),
     m_params        (params),
@@ -51,13 +54,13 @@ SplitBVHBuilder::SplitBVHBuilder(BVH& bvh, const BVH::BuildParams& params)
 
 //------------------------------------------------------------------------
 
-SplitBVHBuilder::~SplitBVHBuilder(void)
+FW::GPUSplitBVHBuilder::~GPUSplitBVHBuilder(void)
 {
 }
 
 //------------------------------------------------------------------------
 
-BVHNode* SplitBVHBuilder::run(void)
+FW::BVHNode* FW::GPUSplitBVHBuilder::run(void)
 {
     if (m_params.enablePrints)
         printf("SBVH alpha=%g minLeafSize=%d maxLeafSize=%d\n", m_params.splitAlpha, m_platform.getMinLeafSize(), m_platform.getMaxLeafSize());
@@ -73,7 +76,7 @@ BVHNode* SplitBVHBuilder::run(void)
     m_reqIndices.resize(rootSpec.numRef);
     FW_ASSERT(m_reqIndices.getSize() == m_refStack.getSize());
 
-#if 0
+#if NOPAR
     for (int i = 0; i < rootSpec.numRef; i++)
     {
         m_refStack[i].triIdx = i;
@@ -112,16 +115,16 @@ BVHNode* SplitBVHBuilder::run(void)
     // Done.
 
     if (m_params.enablePrints)
-        printf("SplitBVHBuilder: progress %.0f%%, duplicates %.0f%%\n",
+        printf("GPUSplitBVHBuilder: progress %.0f%%, duplicates %.0f%%\n",
             100.0f, (F32)m_numDuplicates / (F32)m_bvh.getScene()->getNumTriangles() * 100.0f);
     return root;
 }
 
 //------------------------------------------------------------------------
 
-bool SplitBVHBuilder::sortCompare(void* data, int idxA, int idxB)
+bool FW::GPUSplitBVHBuilder::sortCompare(void* data, int idxA, int idxB)
 {
-    const SplitBVHBuilder* ptr = (const SplitBVHBuilder*)data;
+    const GPUSplitBVHBuilder* ptr = (const GPUSplitBVHBuilder*)data;
     int dim = ptr->m_sortDim;
     const Reference& ra = ptr->m_refStack[idxA];
     const Reference& rb = ptr->m_refStack[idxB];
@@ -132,21 +135,21 @@ bool SplitBVHBuilder::sortCompare(void* data, int idxA, int idxB)
 
 //------------------------------------------------------------------------
 
-void SplitBVHBuilder::sortSwap(void* data, int idxA, int idxB)
+void FW::GPUSplitBVHBuilder::sortSwap(void* data, int idxA, int idxB)
 {
-    SplitBVHBuilder* ptr = (SplitBVHBuilder*)data;
+    GPUSplitBVHBuilder* ptr = (GPUSplitBVHBuilder*)data;
     swap(ptr->m_refStack[idxA], ptr->m_refStack[idxB]);
 }
 
 //------------------------------------------------------------------------
 
-BVHNode* SplitBVHBuilder::buildNode(NodeSpec spec, int level, F32 progressStart, F32 progressEnd)
+FW::BVHNode* FW::GPUSplitBVHBuilder::buildNode(NodeSpec spec, int level, F32 progressStart, F32 progressEnd)
 {
     // Display progress.
 
     if (m_params.enablePrints && m_progressTimer.getElapsed() >= 1.0f)
     {
-        printf("SplitBVHBuilder: progress %.0f%%, duplicates %.0f%%\r",
+        printf("GPUSplitBVHBuilder: progress %.0f%%, duplicates %.0f%%\r",
             progressStart * 100.0f, (F32)m_numDuplicates / (F32)m_bvh.getScene()->getNumTriangles() * 100.0f);
         m_progressTimer.start();
     }
@@ -214,7 +217,7 @@ BVHNode* SplitBVHBuilder::buildNode(NodeSpec spec, int level, F32 progressStart,
 
 //------------------------------------------------------------------------
 
-BVHNode* SplitBVHBuilder::createLeaf(const NodeSpec& spec)
+FW::BVHNode* FW::GPUSplitBVHBuilder::createLeaf(const NodeSpec& spec)
 {
 	// Remove the node's triangles from refStack and add them to tris
 	//printf("%d", spec.numRef);
@@ -226,7 +229,7 @@ BVHNode* SplitBVHBuilder::createLeaf(const NodeSpec& spec)
 
 //------------------------------------------------------------------------
 
-SplitBVHBuilder::ObjectSplit SplitBVHBuilder::findObjectSplit(const NodeSpec& spec, F32 nodeSAH)
+FW::GPUSplitBVHBuilder::ObjectSplit FW::GPUSplitBVHBuilder::findObjectSplit(const NodeSpec& spec, F32 nodeSAH)
 {
     ObjectSplit split;
     const Reference* refPtr = m_refStack.getPtr(m_refStack.getSize() - spec.numRef);
@@ -236,7 +239,7 @@ SplitBVHBuilder::ObjectSplit SplitBVHBuilder::findObjectSplit(const NodeSpec& sp
 
     for (m_sortDim = 0; m_sortDim < 3; m_sortDim++)
     {
-#if 0
+#if NOPAR
         sort(this, m_refStack.getSize() - spec.numRef, m_refStack.getSize(), sortCompare, sortSwap, m_params.doMulticore);
 #else
         // PAR: Sort by centroid
@@ -285,10 +288,10 @@ SplitBVHBuilder::ObjectSplit SplitBVHBuilder::findObjectSplit(const NodeSpec& sp
 
 //------------------------------------------------------------------------
 
-void SplitBVHBuilder::performObjectSplit(NodeSpec& left, NodeSpec& right, const NodeSpec& spec, const ObjectSplit& split)
+void FW::GPUSplitBVHBuilder::performObjectSplit(NodeSpec& left, NodeSpec& right, const NodeSpec& spec, const ObjectSplit& split)
 {
     m_sortDim = split.sortDim;
-#if 0
+#if NOPAR
     sort(this, m_refStack.getSize() - spec.numRef, m_refStack.getSize(), sortCompare, sortSwap, m_params.doMulticore);
 #else
     std::sort(parseq, &m_refStack[m_refStack.getSize() - spec.numRef], &m_refStack[0] + m_refStack.getSize(), [&](const Reference& ra, const Reference& rb) {
@@ -307,7 +310,7 @@ void SplitBVHBuilder::performObjectSplit(NodeSpec& left, NodeSpec& right, const 
 
 //------------------------------------------------------------------------
 
-SplitBVHBuilder::SpatialSplit SplitBVHBuilder::findSpatialSplit(const NodeSpec& spec, F32 nodeSAH)
+FW::GPUSplitBVHBuilder::SpatialSplit FW::GPUSplitBVHBuilder::findSpatialSplit(const NodeSpec& spec, F32 nodeSAH)
 {
     // Initialize bins.
 
@@ -315,7 +318,7 @@ SplitBVHBuilder::SpatialSplit SplitBVHBuilder::findSpatialSplit(const NodeSpec& 
     Vec3f binSize = (spec.bounds.max() - origin) * (1.0f / (F32)NumSpatialBins);
     Vec3f invBinSize = 1.0f / binSize;
 
-#if 0
+#if NOPAR
     for (int dim = 0; dim < 3; dim++)
     {
         for (int i = 0; i < NumSpatialBins; i++)
@@ -344,7 +347,9 @@ SplitBVHBuilder::SpatialSplit SplitBVHBuilder::findSpatialSplit(const NodeSpec& 
         m_progressTimer.start();
     }
 
-    if (spec.numRef < 20) {
+    //if (spec.numRef < 20)
+#if NOPAR
+    {
         for (int refIdx = st; refIdx < end; refIdx++)
         {
             const Reference& ref = m_refStack[refIdx];
@@ -367,6 +372,7 @@ SplitBVHBuilder::SpatialSplit SplitBVHBuilder::findSpatialSplit(const NodeSpec& 
             }
         }
     }
+#else
     else if (spec.numRef < 2000000000) {
         int bleh[NumHostThreads];
 
@@ -494,6 +500,7 @@ SplitBVHBuilder::SpatialSplit SplitBVHBuilder::findSpatialSplit(const NodeSpec& 
             }
         });
     }
+#endif
 
     if (spec.numRef > 10000000) {
         printf(" t=%f\n", m_progressTimer.end());
@@ -546,7 +553,7 @@ SplitBVHBuilder::SpatialSplit SplitBVHBuilder::findSpatialSplit(const NodeSpec& 
 
 //------------------------------------------------------------------------
 
-void SplitBVHBuilder::performSpatialSplit(NodeSpec& left, NodeSpec& right, const NodeSpec& spec, const SpatialSplit& split)
+void FW::GPUSplitBVHBuilder::performSpatialSplit(NodeSpec& left, NodeSpec& right, const NodeSpec& spec, const SpatialSplit& split)
 {
     // Categorize references and compute bounds.
     //
@@ -560,7 +567,7 @@ void SplitBVHBuilder::performSpatialSplit(NodeSpec& left, NodeSpec& right, const
     int rightStart = refs.getSize();
     left.bounds = right.bounds = AABB();
 
-#if 0
+#if NOPAR
     for (int i = leftEnd; i < rightStart; i++)
     {
         // Entirely on the left-hand side?
@@ -653,7 +660,7 @@ void SplitBVHBuilder::performSpatialSplit(NodeSpec& left, NodeSpec& right, const
 
 //------------------------------------------------------------------------
 
-void SplitBVHBuilder::splitReference(Reference& left, Reference& right, const Reference& ref, int dim, F32 pos)
+void FW::GPUSplitBVHBuilder::splitReference(Reference& left, Reference& right, const Reference& ref, int dim, F32 pos)
 {
     // Initialize references.
 

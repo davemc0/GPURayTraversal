@@ -183,7 +183,7 @@ F32 CudaTracer::traceBatch(RayBuffer& rays)
 
 CudaModule* CudaTracer::compileKernel(void)
 {
-    m_compiler.setSourceFile(sprintf("src/rt/kernels/%s.cu", m_kernelName.getPtr()));
+    m_compiler.setSourceFile(Sprintf("src/rt/kernels/%s.cu", m_kernelName.getPtr()));
     m_compiler.clearDefines();
     CudaModule* module = m_compiler.compile();
     return module;

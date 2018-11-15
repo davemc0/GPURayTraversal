@@ -26,6 +26,7 @@
  */
 
 #pragma once
+
 #include "bvh/BVH.hpp"
 #include "base/Timer.hpp"
 
@@ -33,7 +34,7 @@ namespace FW
 {
 //------------------------------------------------------------------------
 
-class SplitBVHBuilder
+class GPUSplitBVHBuilder
 {
 private:
     enum
@@ -98,8 +99,8 @@ private:
     };
 
 public:
-                            SplitBVHBuilder     (BVH& bvh, const BVH::BuildParams& params);
-                            ~SplitBVHBuilder    (void);
+                            GPUSplitBVHBuilder     (BVH& bvh, const BVH::BuildParams& params);
+                            ~GPUSplitBVHBuilder    (void);
 
                             void * malloc(size_t x);
 
@@ -120,8 +121,8 @@ private:
     void                    splitReference      (Reference& left, Reference& right, const Reference& ref, int dim, F32 pos);
 
 private:
-                            SplitBVHBuilder     (const SplitBVHBuilder&); // forbidden
-    SplitBVHBuilder&        operator=           (const SplitBVHBuilder&); // forbidden
+                            GPUSplitBVHBuilder     (const GPUSplitBVHBuilder&); // forbidden
+    GPUSplitBVHBuilder&        operator=           (const GPUSplitBVHBuilder&); // forbidden
 
 private:
     BVH&                    m_bvh;

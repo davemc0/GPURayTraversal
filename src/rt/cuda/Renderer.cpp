@@ -121,7 +121,7 @@ CudaBVH* Renderer::getCudaBVH(void)
 
     // Determine cache file name.
 
-    String cacheFileName = sprintf("%s/%08x.dat", m_bvhCachePath.getPtr(), hashBits(
+    String cacheFileName = Sprintf("%s/%08x.dat", m_bvhCachePath.getPtr(), hashBits(
         m_scene->hash(),
         m_platform.computeHash(),
         m_buildParams.computeHash(),

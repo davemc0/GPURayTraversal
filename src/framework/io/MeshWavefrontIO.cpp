@@ -635,13 +635,13 @@ void FW::exportWavefrontMesh(BufferedOutputStream& stream, const MeshBase* mesh,
             // No name => generate one.
 
             if (!name.getLength())
-                name = sprintf("tex%d", texImageHash.getSize());
+                name = Sprintf("tex%d", texImageHash.getSize());
 
             // Ensure that the name is unique.
 
             String oldName = name;
             for (int k = 0; texNameSet.contains(name); k++)
-                name = sprintf("%s_%d", oldName.getPtr(), k);
+                name = Sprintf("%s_%d", oldName.getPtr(), k);
 
             // Append format postfix.
 

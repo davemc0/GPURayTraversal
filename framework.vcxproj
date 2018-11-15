@@ -68,6 +68,7 @@
       <WarningLevel>Level4</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Lib>
       <AdditionalOptions>/ignore:4006 %(AdditionalOptions)</AdditionalOptions>
@@ -97,6 +98,7 @@
       <WarningLevel>Level4</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Lib>
       <AdditionalOptions>/ignore:4006 %(AdditionalOptions)</AdditionalOptions>
@@ -157,6 +159,7 @@
     <ClInclude Include="src\framework\base\BinaryHeap.hpp" />
     <ClInclude Include="src\framework\base\Defs.hpp" />
     <ClInclude Include="src\framework\base\Deque.hpp" />
+    <ClInclude Include="src\framework\base\DeviceDefs.hpp" />
     <ClInclude Include="src\framework\base\DLLImports.hpp" />
     <ClInclude Include="src\framework\base\Hash.hpp" />
     <ClInclude Include="src\framework\base\Main.hpp" />

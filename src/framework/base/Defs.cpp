@@ -117,6 +117,8 @@ static void deinitString(void* str)
 
 //------------------------------------------------------------------------
 
+#ifdef FW_OVERRIDE_STD_LIB
+
 void* FW::malloc(size_t size)
 {
     FW_ASSERT(size >= 0);
@@ -236,9 +238,11 @@ void FW::printf(const char* fmt, ...)
     s_lock.leave();
 }
 
+#endif
+
 //------------------------------------------------------------------------
 
-String FW::sprintf(const char* fmt, ...)
+String FW::Sprintf(const char* fmt, ...)
 {
     String str;
     va_list args;
@@ -663,12 +667,19 @@ void FW::profileEnd(bool printResults)
 //------------------------------------------------------------------------
 
 #ifndef FW_DO_NOT_OVERRIDE_NEW_DELETE
-#if !FW_CUDA
+#if !FW_CUDAOK
 
+#ifdef FW_OVERRIDE_STD_LIB
 void*    operator new        (size_t size) { return FW::malloc(size); }
 void*    operator new[](size_t size) { return FW::malloc(size); }
 void     operator delete     (void* ptr) { return FW::free(ptr); }
 void     operator delete[](void* ptr) { return FW::free(ptr); }
+#else
+void*    operator new        (size_t size) { return malloc(size); }
+void*    operator new[](size_t size) { return malloc(size); }
+void     operator delete     (void* ptr) { return free(ptr); }
+void     operator delete[](void* ptr) { return free(ptr); }
+#endif
 
 #endif
 #endif // FW_DO_NOT_OVERRIDE_NEW_DELETE

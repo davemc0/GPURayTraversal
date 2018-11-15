@@ -26,7 +26,7 @@
  */
 
 #pragma once
-#include "base/DLLImports.hpp"
+// #include "base/DLLImports.hpp"
 #include "Util.hpp"
 
 namespace FW
@@ -69,7 +69,7 @@ struct CountHitsInput
 
 //------------------------------------------------------------------------
 
-#if FW_CUDA
+#if FW_CUDA_ALWAYS
 extern "C"
 {
 

@@ -76,6 +76,7 @@
       <WarningLevel>Level4</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Link>
       <AdditionalDependencies>cudart_static.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -92,7 +93,7 @@
     </Link>
     <CudaCompile>
       <TargetMachinePlatform>64</TargetMachinePlatform>
-      <CodeGeneration>compute_35,sm_35</CodeGeneration>
+      <CodeGeneration>compute_75,sm_75</CodeGeneration>
       <FastMath>true</FastMath>
     </CudaCompile>
     <CudaLink>
@@ -112,8 +113,7 @@
       <WholeProgramOptimization>false</WholeProgramOptimization>
       <AdditionalIncludeDirectories>src/rt;src/framework;$(CUDA_INC_PATH);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <ExceptionHandling>
-      </ExceptionHandling>
+      <ExceptionHandling>Sync</ExceptionHandling>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <FloatingPointModel>Fast</FloatingPointModel>
       <PrecompiledHeader>
@@ -122,6 +122,7 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <MinimalRebuild>false</MinimalRebuild>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Link>
       <AdditionalDependencies>cudart_static.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -140,7 +141,7 @@
     </Link>
     <CudaCompile>
       <TargetMachinePlatform>64</TargetMachinePlatform>
-      <CodeGeneration>compute_35,sm_35</CodeGeneration>
+      <CodeGeneration>compute_75,sm_75</CodeGeneration>
       <FastMath>true</FastMath>
     </CudaCompile>
     <CudaLink>
@@ -166,6 +167,7 @@
     <ClCompile Include="src\rt\ray\RayGen.cpp" />
     <ClCompile Include="src\rt\App.cpp" />
     <ClCompile Include="src\rt\Scene.cpp" />
+    <ClCompile Include="src\rt\test\testCPP.cpp" />
     <ClCompile Include="src\rt\Util.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -176,6 +178,7 @@
     <ClInclude Include="src\rt\bvhcmpr\TRefine.hpp" />
     <ClInclude Include="src\rt\bvh\BVH.hpp" />
     <ClInclude Include="src\rt\bvh\BVHNode.hpp" />
+    <ClInclude Include="src\rt\bvh\GPUSplitBVHBuilder.hpp" />
     <ClInclude Include="src\rt\bvh\Platform.hpp" />
     <ClInclude Include="src\rt\bvh\RandomBVHBuilder.hpp" />
     <ClInclude Include="src\rt\bvh\SplitBVHBuilder.hpp" />
@@ -191,14 +194,14 @@
     <ClInclude Include="src\rt\ray\RayGenKernels.hpp" />
     <ClInclude Include="src\rt\App.hpp" />
     <ClInclude Include="src\rt\Scene.hpp" />
+    <ClInclude Include="src\rt\test\testCPP.h" />
     <ClInclude Include="src\rt\Util.hpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="src\rt\kernels\stats_kepler_dynamic_fetch.cu">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <FileType>Document</FileType>
     </None>
+    <CudaCompile Include="src\rt\bvh\GPUSplitBVHBuilder.cu" />
     <CudaCompile Include="src\rt\test\kernel.cu">
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">--expt-extended-lambda %(AdditionalOptions)</AdditionalOptions>
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">--expt-extended-lambda %(AdditionalOptions)</AdditionalOptions>
@@ -214,26 +217,26 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </CustomBuildStep>
-    <None Include="src\rt\kernels\fermi_speculative_while_while.cu">
+    <CustomBuildStep Include="src\rt\kernels\fermi_speculative_while_while.cu">
       <FileType>Document</FileType>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </None>
-    <None Include="src\rt\kernels\tesla_persistent_packet.cu">
+    </CustomBuildStep>
+    <CustomBuildStep Include="src\rt\kernels\tesla_persistent_packet.cu">
       <FileType>Document</FileType>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </None>
-    <None Include="src\rt\kernels\tesla_persistent_speculative_while_while.cu">
+    </CustomBuildStep>
+    <CustomBuildStep Include="src\rt\kernels\tesla_persistent_speculative_while_while.cu">
       <FileType>Document</FileType>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </None>
-    <None Include="src\rt\kernels\tesla_persistent_while_while.cu">
+    </CustomBuildStep>
+    <CustomBuildStep Include="src\rt\kernels\tesla_persistent_while_while.cu">
       <FileType>Document</FileType>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </None>
+    </CustomBuildStep>
     <CustomBuildStep Include="src\rt\ray\RayBufferKernels.cu">
       <FileType>Document</FileType>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>

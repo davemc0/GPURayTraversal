@@ -105,7 +105,7 @@ namespace FW
             if (x == treeletTop) {
                 BVHNode* nextBest = m_toSearch.size() > 1 ? m_toSearch[1].second : nullptr;
                 float nextBestC = m_toSearch.size() > 1 ? m_toSearch[1].first : FW_F32_MAX;
-                printf("Best place is home: 0x%08x 0x%08x %d %f; next best is 0x%08x at %f\n", node, treeletTop, m_toSearch.size(), cIx, nextBest, nextBestC);
+                printf("Best place is home: 0x%016llx 0x%016llx %lld %f; next best is 0x%016llx at %f\n", (U64)node, (U64)treeletTop, m_toSearch.size(), cIx, (U64)nextBest, nextBestC);
                 continue;
             }
 
@@ -163,8 +163,8 @@ namespace FW
         // Replace dad with sib. Remove node and dad.
         OptPair_T result = computeModSAH(dadi, sib->m_bounds, sib->m_sah, true);
 
-        printf("If we remove 0x%08x treelet top is 0x%08x SAH change: %g - %g = %g oldA=%f\n",
-            node, result.second, result.first, result.second->m_sah, result.first - result.second->m_sah,
+        printf("If we remove 0x%016llx treelet top is 0x%016llx SAH change: %g - %g = %g oldA=%f\n",
+            (U64)node, (U64)result.second, result.first, result.second->m_sah, result.first - result.second->m_sah,
             result.second->getArea());
 
         OptPair_T fresult = newFindInsertTarget(node, result.second);
@@ -172,15 +172,15 @@ namespace FW
         // XXX Need to deal with unequal costs of root and internal nodes.
         float dSAH = m_platform.getCost(fresult.second->getNumChildNodes(), 0) * fresult.first / m_rootArea;
 
-        printf("If we reinsert 0x%08x as sibling of 0x%08x @ %g SAH change: %g (%g)\n", node, fresult.second, fresult.second->m_sah, dSAH, fresult.first);
+        printf("If we reinsert 0x%016llx as sibling of 0x%016llx @ %g SAH change: %g (%g)\n", (U64)node, (U64)fresult.second, fresult.second->m_sah, dSAH, fresult.first);
 
         // Place it next to x and recompute ancestors of x
         AABB xPlusN = fresult.second->m_bounds + node->m_bounds;
         float xPlusNSAH = fresult.second->m_sah + node->m_sah + m_platform.getCost(fresult.second->getNumChildNodes(), 0) * xPlusN.area() / m_rootArea;
         OptPair_T iresult = computeModSAH(fresult.second, xPlusN, xPlusNSAH, false);
 
-        printf("Reinsert treelet top is 0x%08x SAH change: SAH change: %g - %g = %g oldA=%f\n\n", 
-            iresult.second, iresult.first, iresult.second->m_sah, iresult.first - iresult.second->m_sah, iresult.second->getArea());
+        printf("Reinsert treelet top is 0x%016llx SAH change: SAH change: %g - %g = %g oldA=%f\n\n", 
+            (U64)iresult.second, iresult.first, iresult.second->m_sah, iresult.first - iresult.second->m_sah, iresult.second->getArea());
 
         return result.first;
     }
@@ -506,7 +506,7 @@ namespace FW
                 // Remove a node
                 BVHNode* node = m_toOptimize[i].second;
 
-                // printf("%d Removing node 0x%08x weight=%f area=%f\n", i, (U64)node, m_toOptimize[i].first, node->getArea());
+                // printf("%d Removing node 0x%016llx weight=%f area=%f\n", i, (U64)node, m_toOptimize[i].first, node->getArea());
                 if (m_rparams.nodesToRemove == 1)
                     remove1ForOpt(node);
                 else
@@ -516,7 +516,7 @@ namespace FW
                 std::sort(m_toInsert.begin(), m_toInsert.end(), [](OptPair_T& a, OptPair_T& b) { return a.first > b.first; });
                 for (auto nn : m_toInsert) {
                     // printf("m_toOptimize=%d m_toInsert=%d m_toRecycle=%d m_toSearch=%d\n", m_toOptimize.size(), m_toInsert.size(), m_toRecycle.size(), m_toSearch.size());
-                    // printf("%d Inserting node 0x%08x weight=%f area=%f\n", i, (U64)nn.second, nn.first, nn.second->getArea());
+                    // printf("%d Inserting node 0x%016llx weight=%f area=%f\n", i, (U64)nn.second, nn.first, nn.second->getArea());
                     insertForOpt(nn.second);
                 }
                 m_toInsert.resize(0);
@@ -531,7 +531,7 @@ namespace FW
             float impr = (oldSAH - sah) / sah;
             oldSAH = sah;
 
-            printf("Bitnr %d heur=%d insert=%d batch=%d worst100=%f worst90=%f nr=%d rndch=%d ", iter,
+            printf("Bitnr %d heur=%d insert=%d batch=%lld worst100=%f worst90=%f nr=%d rndch=%d ", iter,
                 m_rparams.priorityMetric, m_nodesInserted, batchSize, m_toOptimize[0].first,
                 m_toOptimize[size_t(m_toOptimize.size()*0.1f)].first, m_rparams.nodesToRemove, m_rparams.removeRandomChild);
             printf("dsah=%1.2f%% sah=%.6f tt=%f t=%f\n", 100.f * impr, sah, m_refine.getTimer().getTotal(), m_refine.getTimer().end());
@@ -611,3 +611,5 @@ namespace FW
 // On Bittner, cycle through the different heuristics to get nodes that are bad in any way
 
 // Once we know the best place for a node is inside its modified treelet we could do a TRBVH on that treelet.
+
+// TRBVH puts lots of work into optimizing a whole treelet, then throws most of the work away as it steps up to the next level of the tree.

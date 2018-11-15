@@ -1,5 +1,12 @@
+//#include "base/DeviceDefs.hpp"
+//#include "base/Math.hpp"
+
 #include <thrust/host_vector.h>
+#include <thrust/device_vector.h>
 #include <thrust/sort.h>
+
+
+#if 0
 
 struct multip
 {
@@ -7,10 +14,8 @@ struct multip
         int operator()(int x) { return x * 10; }
 };
 
-void hostSort()
+void hostSort(size_t N)
 {
-    int N = 1 << 24;
-
     thrust::host_vector<float> a(N);
     
     //thrust::generate(a.begin(), a.end(), []() { return (float)rand(); });
@@ -24,10 +29,8 @@ void hostSort()
     //std::cout << '\n';
 }
 
-float testReduce()
+float testReduce(size_t N)
 {
-    int N = 1 << 29;
-
     thrust::host_vector<float> a(N);
     thrust::device_vector<float> b(N);
     thrust::device_vector<float> c(N);
@@ -57,11 +60,9 @@ float testReduce()
     return res;
 }
 
-float testUVM()
+float testUVM(size_t N)
 {
     printf("Testing UVM\n");
-
-    int N = 1 << 12;
 
     thrust::host_vector<float> a(N);
     thrust::device_vector<float> b(N);
@@ -74,7 +75,7 @@ float testUVM()
     cudaError_t er = cudaMallocManaged(&aptr, N * sizeof(float));// , cudaStreamDefault);
 
     assert(er == cudaSuccess);
-    printf("aptr=0x%08llx er=%d\n", aptr, er);
+    printf("aptr=0x%08llx er=%d\n", (unsigned long long)aptr, er);
 
     for (int i = 0; i < N; i++)
         aptr[i] = 3.14159f; // (float)rand();
@@ -90,10 +91,33 @@ float testUVM()
     return 0.f;
 }
 
-float testThrust()
+#endif
+
+// Kernel definition
+__global__ void VecAdd(float* A, float* B, float* C)
 {
-    testUVM();
-    // hostSort();
+    int i = threadIdx.x;
+
+    C[i] = A[i] + B[i];
+}
+
+void testKernel(size_t N)
+{
+    thrust::device_vector<float> A(N);
+    thrust::device_vector<float> B(N);
+    thrust::device_vector<float> C(N);
+
+    int numBlocks = 1;
+    dim3 threadsPerBlock(32);
+    VecAdd<<<numBlocks, threadsPerBlock >>>(A.data().get(), (float*)B.data().get(), (float*)C.data().get());
+}
+
+float testThrust(size_t N)
+{
+
+    testKernel(N);
+    // testUVM();
+    //hostSort(N);
 
     return 123.f;
 }

@@ -78,12 +78,12 @@ public:
 
     void                    clearOptions    (void)                                          { m_options = ""; m_optionHashValid = false; m_memHashValid = false; }
     void                    addOptions      (const String& options)                         { m_options += options + " "; m_optionHashValid = false; m_memHashValid = false; }
-    void                    include         (const String& path)                            { addOptions(sprintf("-I\"%s\"", path.getPtr())); }
+    void                    include         (const String& path)                            { addOptions(Sprintf("-I\"%s\"", path.getPtr())); }
 
     void                    clearDefines    (void)                                          { m_defines.clear(); m_defineHashValid = false; m_memHashValid = false; }
     void                    undef           (const String& key)                             { if (m_defines.contains(key)) { m_defines.remove(key); m_defineHashValid = false; m_memHashValid = false; } }
     void                    define          (const String& key, const String& value = "")   { undef(key); m_defines.add(key, value); m_defineHashValid = false; m_memHashValid = false; }
-    void                    define          (const String& key, int value)                  { define(key, sprintf("%d", value)); }
+    void                    define          (const String& key, int value)                  { define(key, Sprintf("%d", value)); }
 
     void                    clearPreamble   (void)                                          { m_preamble = ""; m_preambleHashValid = false; m_memHashValid = false; }
     void                    addPreamble     (const String& preamble)                        { m_preamble += preamble + "\n"; m_preambleHashValid = false; m_memHashValid = false; }

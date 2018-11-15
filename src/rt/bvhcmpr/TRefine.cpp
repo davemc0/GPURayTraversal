@@ -326,7 +326,7 @@ namespace FW
         if (m_collapseToLeaves || fuzzyDiff(tRoot->m_sah, m_copt[rti], m_rparams.treeletEpsilon)) {
             //if (m_rparams.treeletEpsilon == 1e-2f) {
             //	float diff = tRoot->m_sah - m_copt[rti];
-            //	printf("Treelet: 0x%08x %.8g - %.8g = %.8g %.8g %f\n", tRoot, tRoot->m_sah, m_copt[rti], diff, m_rparams.treeletEpsilon, diff / tRoot->m_sah);
+            //	printf("Treelet: 0x%016llx %.8g - %.8g = %.8g %.8g %f\n", tRoot, tRoot->m_sah, m_copt[rti], diff, m_rparams.treeletEpsilon, diff / tRoot->m_sah);
             //	//m_bvh.printTree(tRoot);
             //}
 

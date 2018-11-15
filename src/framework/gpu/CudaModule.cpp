@@ -640,7 +640,7 @@ void CudaModule::printDeviceInfo(CUdevice device)
     name[FW_ARRAY_SIZE(name) - 1] = '\0';
 
     printf("\n");
-    printf("%-32s%s\n", sprintf("CUDA device %d", (int)device).getPtr(), name);
+    printf("%-32s%s\n", Sprintf("CUDA device %d", (int)device).getPtr(), name);
     printf("%-32s%s\n", "---", "---");
     printf("%-32s%d.%d\n", "Compute capability", major, minor);
     printf("%-32s%.0f megs\n", "Total memory", (F32)memory * exp2(-20));

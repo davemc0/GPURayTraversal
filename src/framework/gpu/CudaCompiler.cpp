@@ -97,7 +97,7 @@ String FW::formatInlineCuda(const char* file, int line, const char* code)
 
     // Piece the code together.
 
-    return sprintf("#line %d \"%s\"\n%s%s%s\n", line - numLinefeeds, fixedFile.getPtr(), s_header, code, s_footer);
+    return Sprintf("#line %d \"%s\"\n%s%s%s\n", line - numLinefeeds, fixedFile.getPtr(), s_header, code, s_footer);
 }
 
 //------------------------------------------------------------------------
@@ -280,13 +280,13 @@ void CudaCompiler::staticInit(void)
     {
         for (int progX86 = 0; progX86 <= 1; progX86++)
         {
-            String prog = sprintf("%c:\\%s", drive, (progX86 == 0) ? "Program Files" : "Program Files (x86)");
-		    potentialCudaPaths.add(prog + sprintf("\\NVIDIA GPU Computing Toolkit\\CUDA\\v%.1f", driverVersion));
+            String prog = Sprintf("%c:\\%s", drive, (progX86 == 0) ? "Program Files" : "Program Files (x86)");
+		    potentialCudaPaths.add(prog + Sprintf("\\NVIDIA GPU Computing Toolkit\\CUDA\\v%.1f", driverVersion));
             potentialVSPaths.add(prog + "\\Microsoft Visual Studio 10.0");
             potentialVSPaths.add(prog + "\\Microsoft Visual Studio 9.0");
             potentialVSPaths.add(prog + "\\Microsoft Visual Studio 8");
         }
-		potentialCudaPaths.add(sprintf("%c:\\CUDA", drive));
+		potentialCudaPaths.add(Sprintf("%c:\\CUDA", drive));
     }
 
     // Query environment variables.
@@ -320,7 +320,7 @@ void CudaCompiler::staticInit(void)
 
         // Execute "nvcc --version".
 
-        FILE* pipe = _popen(sprintf("\"%s\\nvcc.exe\" --version 2>nul", cudaBinList[i].getPtr()).getPtr(), "rt");
+        FILE* pipe = _popen(Sprintf("\"%s\\nvcc.exe\" --version 2>nul", cudaBinList[i].getPtr()).getPtr(), "rt");
         if (!pipe)
             continue;
 
@@ -427,7 +427,7 @@ void CudaCompiler::staticInit(void)
 
     // Form NVCC command line.
 
-    s_nvccCommand = sprintf("set PATH=%s;%s & nvcc.exe -ccbin \"%s\" -I\"%s\" -I\"%s\" -I. -D_CRT_SECURE_NO_DEPRECATE",
+    s_nvccCommand = Sprintf("set PATH=%s;%s & nvcc.exe -ccbin \"%s\" -I\"%s\" -I\"%s\" -I. -D_CRT_SECURE_NO_DEPRECATE",
         cudaBinPath.getPtr(),
         pathEnv.getPtr(),
         vsBinPath.getPtr(),
@@ -640,7 +640,7 @@ void CudaCompiler::runPreprocessor(String& cubinFile, String& finalOpts)
     // Preprocess.
 
     String logFile = m_cachePath + "\\preprocess.log";
-    String cmd = sprintf("%s -E -o \"%s\\preprocessed.cu\" -include \"%s\\defines.inl\" %s \"%s\" 2>>\"%s\"",
+    String cmd = Sprintf("%s -E -o \"%s\\preprocessed.cu\" -include \"%s\\defines.inl\" %s \"%s\" 2>>\"%s\"",
         s_nvccCommand.getPtr(),
         m_cachePath.getPtr(),
         m_cachePath.getPtr(),
@@ -701,7 +701,7 @@ void CudaCompiler::runPreprocessor(String& cubinFile, String& finalOpts)
     hashA += hash<String>(finalOpts);
     hashB += s_nvccVersionHash;
             FW_JENKINS_MIX(hashA, hashB, hashC);
-    cubinFile = sprintf("%s\\%08x%08x.cubin", m_cachePath.getPtr(), hashB, hashC);
+    cubinFile = Sprintf("%s\\%08x%08x.cubin", m_cachePath.getPtr(), hashB, hashC);
         }
 
 //------------------------------------------------------------------------
@@ -709,7 +709,7 @@ void CudaCompiler::runPreprocessor(String& cubinFile, String& finalOpts)
 void CudaCompiler::runCompiler(const String& cubinFile, const String& finalOpts)
 {
     String logFile = m_cachePath + "\\compile.log";
-    String cmd = sprintf("%s -o \"%s\" -include \"%s\\defines.inl\" %s \"%s\" 2>>\"%s\"",
+    String cmd = Sprintf("%s -o \"%s\" -include \"%s\\defines.inl\" %s \"%s\" 2>>\"%s\"",
         s_nvccCommand.getPtr(),
         cubinFile.getPtr(),
         m_cachePath.getPtr(),
@@ -742,7 +742,7 @@ String CudaCompiler::fixOptions(String opts)
     {
         opts = removeOption(opts, "-arch", true);
         opts = removeOption(opts, "--gpu-architecture", true);
-        opts += sprintf("-arch sm_%d ", smArch);
+        opts += Sprintf("-arch sm_%d ", smArch);
     }
 
     // Override pointer width.

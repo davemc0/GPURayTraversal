@@ -26,8 +26,9 @@
  */
 
 #pragma once
+
 #include "base/Math.hpp"
-#   include "3d/Mesh.hpp"
+#include "3d/Mesh.hpp"
 
 namespace FW
 {

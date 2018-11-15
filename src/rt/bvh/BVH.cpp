@@ -28,6 +28,7 @@
 #define FW_ENABLE_ASSERT
 
 #include "bvh/BVH.hpp"
+#include "bvh/GPUSplitBVHBuilder.hpp"
 #include "bvh/SplitBVHBuilder.hpp"
 #include "bvh/RandomBVHBuilder.hpp"
 #include "bvhcmpr/Refine.hpp"
@@ -62,11 +63,12 @@ BVH::BVH(Scene* scene, const Platform& platform, const BuildParams& params)
 
     // XXX Disable splitting
     BuildParams sparams = params;
-    sparams.doMulticore = true;
+    sparams.doMulticore = false; // XXX
     // sparams.splitAlpha = FW_F32_MAX;
 
+    // m_root = GPUSplitBVHBuilder(*this, sparams).run();
     m_root = SplitBVHBuilder(*this, sparams).run();
-    //m_root = RandomBVHBuilder(*this, sparams, true).run();
+    // m_root = RandomBVHBuilder(*this, sparams, true).run();
 
     m_platform.setLeafPreferences(oldMinLeafSize, oldMaxLeafSize);
 
@@ -215,14 +217,14 @@ void BVH::printTree(BVHNode* node, int level)
 {
 	for (int e = 0; e < level; e++)
 		printf(" ");
-	printf("0x%08x: prob=%f area=%f sah=%f tris=%d froz=%d ", (U64)node, node->m_probability, node->getArea(), node->m_sah, node->m_tris, node->m_frozen);
+	printf("0x%016llx: prob=%f area=%f sah=%f tris=%d froz=%d ", (U64)node, node->m_probability, node->getArea(), node->m_sah, node->m_tris, node->m_frozen);
 	if (node->isLeaf()) {
 		LeafNode* l = dynamic_cast<LeafNode*>(node);
 		printf("L: %d %d\n", l->m_lo, l->m_hi);
 	}
 	else {
 		InnerNode* i = dynamic_cast<InnerNode*>(node);
-		printf("I:0x%08x 0x%08x\n", i->getChildNode(0), i->getChildNode(1));
+		printf("I:0x%016llx 0x%016llx\n", (U64)i->getChildNode(0), (U64)i->getChildNode(1));
 		printTree(i->getChildNode(0), level + 1);
 		printTree(i->getChildNode(1), level + 1);
 	}

@@ -371,7 +371,7 @@ String Window::showFileDialog(const String& title, bool save, const String& filt
             all += "*.";
             all += extensions[i];
         }
-        filterStr = sprintf("All Supported Formats (%s)\n%s\n", all.getPtr(), all.getPtr()) + filterStr;
+        filterStr = Sprintf("All Supported Formats (%s)\n%s\n", all.getPtr(), all.getPtr()) + filterStr;
     }
     filterStr += "All Files (*.*)\n*.*\n";
 

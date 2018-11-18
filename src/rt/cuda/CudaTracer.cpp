@@ -162,6 +162,7 @@ F32 CudaTracer::traceBatch(RayBuffer& rays)
     // Launch.
     F32 timeElapsed = kernel.launchTimed(numBlocks * blockSize.x * blockSize.y, blockSize);
 
+#if 0
     static int pCount = 0;
     if (pCount++ % 100 == 0) {
         printCounter(module, "g_rayLaunches");
@@ -175,6 +176,7 @@ F32 CudaTracer::traceBatch(RayBuffer& rays)
         printCounter(module, "g_stackPops");
         printf("\n");
     }
+#endif
 
     return timeElapsed;
 }

@@ -304,6 +304,10 @@ FW_DLL_IMPORT_CUDA( CUresult,   CUDAAPI,    cuCtxSetSharedMemConfig,            
 FW_DLL_IMPORT_CUDA( CUresult,   CUDAAPI,    cuFuncSetSharedMemConfig,               (CUfunction hfunc, CUsharedconfig config), (hfunc, config))
 #endif
 
+#if (CUDA_VERSION >= 7000)
+FW_DLL_IMPORT_CUDA( CUresult,   CUDAAPI,    cuMemAllocManaged,                      (CUdeviceptr *dptr, size_t bytesize, unsigned int flags), (dptr, bytesize, flags))
+#endif
+
 //------------------------------------------------------------------------
 // OpenGL
 //------------------------------------------------------------------------

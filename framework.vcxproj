@@ -99,6 +99,11 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpplatest</LanguageStandard>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
     </ClCompile>
     <Lib>
       <AdditionalOptions>/ignore:4006 %(AdditionalOptions)</AdditionalOptions>
@@ -156,6 +161,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\framework\base\Array.hpp" />
+    <ClInclude Include="src\framework\base\ArrayAllocator.hpp" />
     <ClInclude Include="src\framework\base\BinaryHeap.hpp" />
     <ClInclude Include="src\framework\base\Defs.hpp" />
     <ClInclude Include="src\framework\base\Deque.hpp" />
@@ -163,6 +169,7 @@
     <ClInclude Include="src\framework\base\DLLImports.hpp" />
     <ClInclude Include="src\framework\base\Hash.hpp" />
     <ClInclude Include="src\framework\base\Main.hpp" />
+    <ClInclude Include="src\framework\base\ManagedAllocator.hpp" />
     <ClInclude Include="src\framework\base\Math.hpp" />
     <ClInclude Include="src\framework\base\MulticoreLauncher.hpp" />
     <ClInclude Include="src\framework\base\Random.hpp" />

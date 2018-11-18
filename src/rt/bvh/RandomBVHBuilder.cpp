@@ -1,4 +1,6 @@
+
 #include "bvh/RandomBVHBuilder.hpp"
+#include "bvh/BVHNode.hpp"
 
 using namespace FW;
 

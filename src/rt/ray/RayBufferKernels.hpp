@@ -91,7 +91,6 @@ struct ReorderRaysInput
 
 //------------------------------------------------------------------------
 
-#if FW_CUDA_ALWAYS
 extern "C"
 {
 
@@ -106,7 +105,6 @@ __constant__ ReorderRaysInput c_ReorderRaysInput;
 __global__ void reorderRaysKernel(void);
 
 }
-#endif
 
 //------------------------------------------------------------------------
 }

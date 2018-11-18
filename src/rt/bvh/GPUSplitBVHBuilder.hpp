@@ -26,123 +26,106 @@
  */
 
 #pragma once
-
 #include "bvh/BVH.hpp"
 #include "base/Timer.hpp"
 
 namespace FW
 {
-//------------------------------------------------------------------------
+    //------------------------------------------------------------------------
 
-class GPUSplitBVHBuilder
-{
-private:
-    enum
+    class GPUSplitBVHBuilder
     {
-        MaxDepth        = 64,
-        MaxSpatialDepth = 48,
-        NumSpatialBins  = 128,
-        NumHostThreads  = 8,
+    private:
+        enum
+        {
+            MaxDepth = 64,
+            MaxSpatialDepth = 48,
+            NumSpatialBins = 128,
+        };
+
+        struct Reference
+        {
+            S32                 triIdx;
+            AABB                bounds;
+
+            Reference(void) : triIdx(-1) {}
+        };
+
+        struct NodeSpec
+        {
+            S32                 numRef;
+            AABB                bounds;
+
+            NodeSpec(void) : numRef(0) {}
+        };
+
+        struct ObjectSplit
+        {
+            F32                 sah;
+            S32                 sortDim;
+            S32                 numLeft;
+            AABB                leftBounds;
+            AABB                rightBounds;
+
+            ObjectSplit(void) : sah(FW_F32_MAX), sortDim(0), numLeft(0) {}
+        };
+
+        struct SpatialSplit
+        {
+            F32                 sah;
+            S32                 dim;
+            F32                 pos;
+
+            SpatialSplit(void) : sah(FW_F32_MAX), dim(0), pos(0.0f) {}
+        };
+
+        struct SpatialBin
+        {
+            AABB                bounds;
+            S32                 enter;
+            S32                 exit;
+        };
+
+    public:
+        GPUSplitBVHBuilder(BVH& bvh, const BVH::BuildParams& params);
+        ~GPUSplitBVHBuilder(void);
+
+        BVHNode*                run(void);
+
+    private:
+        static bool             sortCompare(void* data, int idxA, int idxB);
+        static void             sortSwap(void* data, int idxA, int idxB);
+
+        BVHNode*                buildNode(NodeSpec spec, int level, F32 progressStart, F32 progressEnd);
+        BVHNode*                createLeaf(const NodeSpec& spec);
+
+        ObjectSplit             findObjectSplit(const NodeSpec& spec, F32 nodeSAH);
+        void                    performObjectSplit(NodeSpec& left, NodeSpec& right, const NodeSpec& spec, const ObjectSplit& split);
+
+        SpatialSplit            findSpatialSplit(const NodeSpec& spec, F32 nodeSAH);
+        void                    performSpatialSplit(NodeSpec& left, NodeSpec& right, const NodeSpec& spec, const SpatialSplit& split);
+        void                    splitReference(Reference& left, Reference& right, const Reference& ref, int dim, F32 pos, const Vec3i* tris, const Vec3f* verts);
+
+        void Benchy(); // XXX
+
+    private:
+        GPUSplitBVHBuilder(const GPUSplitBVHBuilder&); // forbidden
+        GPUSplitBVHBuilder&        operator=           (const GPUSplitBVHBuilder&); // forbidden
+
+    private:
+        BVH&                    m_bvh;
+        const Platform&         m_platform;
+        const BVH::BuildParams& m_params;
+
+        Array<Reference>        m_refStack;
+        F32                     m_minOverlap;
+        Array<AABB>             m_rightBounds;
+        S32                     m_sortDim;
+        SpatialBin              m_bins[3][NumSpatialBins];
+
+        Timer                   m_progressTimer;
+        S32                     m_numDuplicates;
     };
 
-    struct Reference
-    {
-        S32                 triIdx;
-        AABB                bounds;
-
-        Reference(void) : triIdx(-1) {}
-    };
-
-    struct NodeSpec
-    {
-        S32                 numRef;
-        AABB                bounds;
-
-        NodeSpec(void) : numRef(0) {}
-    };
-
-    struct ObjectSplit
-    {
-        F32                 sah;
-        S32                 sortDim;
-        S32                 numLeft;
-        AABB                leftBounds;
-        AABB                rightBounds;
-
-        ObjectSplit(void) : sah(FW_F32_MAX), sortDim(0), numLeft(0) {}
-    };
-
-    struct SpatialSplit
-    {
-        F32                 sah;
-        S32                 dim;
-        F32                 pos;
-
-        SpatialSplit(void) : sah(FW_F32_MAX), dim(0), pos(0.0f) {}
-    };
-
-    struct SpatialBin
-    {
-        AABB                bounds;
-        S32                 enter;
-        S32                 exit;
-    };
-
-    // A request to intersect a triangle reference against a SpatialBin
-    struct BinTriIntReq
-    {
-        S32                 ref; // This is an array index, so should be a size_t.
-        S32                 bin;
-        S8                  dim;
-        S8                  enters; // This is the bin in which the reference enters the range
-        S8                  exits; // " exits
-    };
-
-public:
-                            GPUSplitBVHBuilder     (BVH& bvh, const BVH::BuildParams& params);
-                            ~GPUSplitBVHBuilder    (void);
-
-                            void * malloc(size_t x);
-
-                            BVHNode*                run                 (void);
-
-private:
-    static bool             sortCompare         (void* data, int idxA, int idxB);
-    static void             sortSwap            (void* data, int idxA, int idxB);
-
-    BVHNode*                buildNode           (NodeSpec spec, int level, F32 progressStart, F32 progressEnd);
-    BVHNode*                createLeaf          (const NodeSpec& spec);
-
-    ObjectSplit             findObjectSplit     (const NodeSpec& spec, F32 nodeSAH);
-    void                    performObjectSplit  (NodeSpec& left, NodeSpec& right, const NodeSpec& spec, const ObjectSplit& split);
-
-    SpatialSplit            findSpatialSplit    (const NodeSpec& spec, F32 nodeSAH);
-    void                    performSpatialSplit (NodeSpec& left, NodeSpec& right, const NodeSpec& spec, const SpatialSplit& split);
-    void                    splitReference      (Reference& left, Reference& right, const Reference& ref, int dim, F32 pos);
-
-private:
-                            GPUSplitBVHBuilder     (const GPUSplitBVHBuilder&); // forbidden
-    GPUSplitBVHBuilder&        operator=           (const GPUSplitBVHBuilder&); // forbidden
-
-private:
-    BVH&                    m_bvh;
-    const Platform&         m_platform;
-    const BVH::BuildParams& m_params;
-
-    Array<Reference>        m_refStack;
-    Array<S32>              m_reqIndices; // GPU-style parallelization (These are array indices so should be size_t)
-    Array<BinTriIntReq>     m_intersectReqs; // GPU-style parallelization
-
-    F32                     m_minOverlap;
-    Array<AABB>             m_rightBounds;
-    S32                     m_sortDim;
-    SpatialBin              m_bins[3][NumSpatialBins];
-    SpatialBin              m_parBins[NumHostThreads][3][NumSpatialBins];
-
-    Timer                   m_progressTimer;
-    S32                     m_numDuplicates;
-    bool                    m_doMulticore;
-};
-
-//------------------------------------------------------------------------
+    //------------------------------------------------------------------------
 }

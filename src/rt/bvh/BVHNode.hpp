@@ -26,9 +26,11 @@
  */
 
 #pragma once
+
 #include "base/Array.hpp"
 #include "bvh/Platform.hpp"
 #include "Util.hpp"
+#include "base/ArrayAllocator.hpp"
 
 namespace FW
 {
@@ -53,6 +55,8 @@ class BVHNode
 {
 public:
 	BVHNode() : m_probability(1.f), m_treelet(-1), m_index(-1), m_sah(0), m_tris(0), m_frozen(0), m_parent(nullptr) {}
+    virtual ~BVHNode() { m_index = 0; } // XXX Mark node as deleted so it doesn't get read on GPU
+
     virtual bool        isLeaf() const = 0;
     virtual S32         getNumChildNodes() const = 0;
     virtual BVHNode*    getChildNode(S32 i) const = 0;
@@ -90,13 +94,17 @@ public:
 class InnerNode : public BVHNode
 {
 public:
-    InnerNode(const AABB& bounds,BVHNode* child0,BVHNode* child1)   { m_bounds=bounds; m_children[0]=child0; m_children[1]=child1; }
+    InnerNode(const AABB& bounds, BVHNode* child0, BVHNode* child1)   { m_bounds=bounds; m_children[0]=child0; m_children[1]=child1; }
 
     bool        isLeaf() const                  { return false; }
     S32         getNumChildNodes() const        { return 2; }
     BVHNode*    getChildNode(S32 i) const       { FW_ASSERT(i>=0 && i<2); return m_children[i]; }
 
     BVHNode*    m_children[2];
+
+    void* operator new(size_t size)             { FW_ASSERT(s_AA); return s_AA->alloc(size); }
+    void operator delete(void* ptr)             { FW_ASSERT(s_AA); return s_AA->free((InnerNode*)ptr); }
+    static ArrayAllocator<InnerNode>*           s_AA;
 };
 
 
@@ -113,6 +121,10 @@ public:
     S32         getNumTriangles() const         { return m_hi-m_lo; }
     S32         m_lo;
     S32         m_hi;
+
+    void* operator new(size_t size)             { FW_ASSERT(s_AA); return s_AA->alloc(size); }
+    void operator delete(void* ptr)             { FW_ASSERT(s_AA); return s_AA->free((LeafNode*)ptr); }
+    static ArrayAllocator<LeafNode>*            s_AA;
 };
 
 } //

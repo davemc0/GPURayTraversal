@@ -35,45 +35,34 @@ namespace FW
 {
 //------------------------------------------------------------------------
 
-FW_CUDA_HD_FUNC F32    sqrt            (F32 a)         { return ::sqrtf(a); }
-FW_CUDA_HD_FUNC F64    sqrt            (F64 a)         { return ::sqrt(a); }
-FW_CUDA_HD_FUNC S32    abs             (S32 a)         { return (a >= 0) ? a : -a; }
-FW_CUDA_HD_FUNC S64    abs             (S64 a)         { return (a >= 0) ? a : -a; }
-FW_CUDA_HD_FUNC F32    abs             (F32 a)         { return ::fabsf(a); }
-FW_CUDA_HD_FUNC F64    abs             (F64 a)         { return ::fabs(a); }
-FW_CUDA_HD_FUNC F64    pow             (F64 a, F64 b)  { return ::pow(a, b); }
-FW_CUDA_HD_FUNC F64    exp             (F64 a)         { return ::exp(a); }
-FW_CUDA_HD_FUNC F64    log             (F64 a)         { return ::log(a); }
-FW_CUDA_HD_FUNC F64    sin             (F64 a)         { return ::sin(a); }
-FW_CUDA_HD_FUNC F64    cos             (F64 a)         { return ::cos(a); }
-FW_CUDA_HD_FUNC F64    tan             (F64 a)         { return ::tan(a); }
-FW_CUDA_HD_FUNC F32    asin            (F32 a)         { return ::asinf(a); }
-FW_CUDA_HD_FUNC F64    asin            (F64 a)         { return ::asin(a); }
-FW_CUDA_HD_FUNC F32    acos            (F32 a)         { return ::acosf(a); }
-FW_CUDA_HD_FUNC F64    acos            (F64 a)         { return ::acos(a); }
-FW_CUDA_HD_FUNC F32    atan            (F32 a)         { return ::atanf(a); }
-FW_CUDA_HD_FUNC F64    atan            (F64 a)         { return ::atan(a); }
-FW_CUDA_HD_FUNC F64    atan2           (F64 y, F64 x)  { return ::atan2(y, x); }
-FW_CUDA_HD_FUNC F32    atan2           (F32 y, F32 x)  { return ::atan2f(y, x); }
-FW_CUDA_HD_FUNC F32    floor           (F32 a)         { return ::floorf(a); }
-FW_CUDA_HD_FUNC F64    floor           (F64 a)         { return ::floor(a); }
-FW_CUDA_HD_FUNC F32    ceil            (F32 a)         { return ::ceilf(a); }
-FW_CUDA_HD_FUNC F64    ceil            (F64 a)         { return ::ceil(a); }
-FW_CUDA_HD_FUNC U64    doubleToBits    (F64 a)         { return *(U64*)&a; }
-FW_CUDA_HD_FUNC F64    bitsToDouble    (U64 a)         { return *(F64*)&a; }
+FW_CUDA_FUNC F32    sqrt            (F32 a)         { return ::sqrtf(a); }
+FW_CUDA_FUNC F64    sqrt            (F64 a)         { return ::sqrt(a); }
+FW_CUDA_FUNC S32    abs             (S32 a)         { return (a >= 0) ? a : -a; }
+FW_CUDA_FUNC S64    abs             (S64 a)         { return (a >= 0) ? a : -a; }
+FW_CUDA_FUNC F32    abs             (F32 a)         { return ::fabsf(a); }
+FW_CUDA_FUNC F64    abs             (F64 a)         { return ::fabs(a); }
+FW_CUDA_FUNC F64    pow             (F64 a, F64 b)  { return ::pow(a, b); }
+FW_CUDA_FUNC F64    exp             (F64 a)         { return ::exp(a); }
+FW_CUDA_FUNC F64    log             (F64 a)         { return ::log(a); }
+FW_CUDA_FUNC F64    sin             (F64 a)         { return ::sin(a); }
+FW_CUDA_FUNC F64    cos             (F64 a)         { return ::cos(a); }
+FW_CUDA_FUNC F64    tan             (F64 a)         { return ::tan(a); }
+FW_CUDA_FUNC F32    asin            (F32 a)         { return ::asinf(a); }
+FW_CUDA_FUNC F64    asin            (F64 a)         { return ::asin(a); }
+FW_CUDA_FUNC F32    acos            (F32 a)         { return ::acosf(a); }
+FW_CUDA_FUNC F64    acos            (F64 a)         { return ::acos(a); }
+FW_CUDA_FUNC F32    atan            (F32 a)         { return ::atanf(a); }
+FW_CUDA_FUNC F64    atan            (F64 a)         { return ::atan(a); }
+FW_CUDA_FUNC F64    atan2           (F64 y, F64 x)  { return ::atan2(y, x); }
+FW_CUDA_FUNC F32    atan2           (F32 y, F32 x)  { return ::atan2f(y, x); }
+FW_CUDA_FUNC F32    floor           (F32 a)         { return ::floorf(a); }
+FW_CUDA_FUNC F64    floor           (F64 a)         { return ::floor(a); }
+FW_CUDA_FUNC F32    ceil            (F32 a)         { return ::ceilf(a); }
+FW_CUDA_FUNC F64    ceil            (F64 a)         { return ::ceil(a); }
+FW_CUDA_FUNC U64    doubleToBits    (F64 a)         { return *(U64*)&a; }
+FW_CUDA_FUNC F64    bitsToDouble    (U64 a)         { return *(F64*)&a; }
 
-FW_CUDA_FUNC F32 dawg(F32 a, F32 b)
-{
-#ifdef __CUDA_ARCH__
-    return ::__powf(a, b); 
-#else
-    return ::powf(a, b);
-#endif
-}
-
-//#if FW_CUDA10
-
-#if __CUDA_ARCH__
+#if FW_CUDA_DEV
 FW_CUDA_FUNC F32    pow             (F32 a, F32 b)  { return ::__powf(a, b); }
 FW_CUDA_FUNC F32    exp             (F32 a)         { return ::__expf(a); }
 FW_CUDA_FUNC F32    exp2            (F32 a)         { return ::exp2f(a); }
@@ -91,7 +80,6 @@ FW_CUDA_FUNC F32    fastMin         (F32 a, F32 b)  { return ::fminf(a, b); }
 FW_CUDA_FUNC F32    fastMax         (F32 a, F32 b)  { return ::fmaxf(a, b); }
 FW_CUDA_FUNC F64    fastMin         (F64 a, F64 b)  { return ::fmin(a, b); }
 FW_CUDA_FUNC F64    fastMax         (F64 a, F64 b)  { return ::fmax(a, b); }
-//#endif
 #else
 inline F32          pow             (F32 a, F32 b)  { return ::powf(a, b); }
 inline F32          exp             (F32 a)         { return ::expf(a); }
@@ -144,9 +132,7 @@ public:
     FW_CUDA_FUNC    void            set         (const T* ptr)              { FW_ASSERT(ptr); T* tp = getPtr(); for (int i = 0; i < L; i++) tp[i] = ptr[i]; }
     FW_CUDA_FUNC    void            setZero     (void)                      { set((T)0); }
 
-#if !FW_CUDAOK
     FW_CUDA_FUNC    void            print       (void) const                { const T* tp = getPtr(); for (int i = 0; i < L; i++) printf("%g\n", (F64)tp[i]); }
-#endif
 
     FW_CUDA_FUNC    bool            isZero      (void) const                { const T* tp = getPtr(); for (int i = 0; i < L; i++) if (tp[i] != (T)0) return false; return true; }
     FW_CUDA_FUNC    T               lenSqr      (void) const                { const T* tp = getPtr(); T r = (T)0; for (int i = 0; i < L; i++) r += sqr(tp[i]); return r; }
@@ -375,10 +361,8 @@ public:
     FW_CUDA_FUNC    Vec3f           getXYZ      (void) const                { return Vec3f(x, y, z); }
     FW_CUDA_FUNC    Vec3f           getXYW      (void) const                { return Vec3f(x, y, w); }
 
-#if !FW_CUDAOK
     static Vec4f    fromABGR        (U32 abgr);
     U32             toABGR          (void) const;
-#endif
 
     template <class V> FW_CUDA_FUNC Vec4f(const VectorBase<F32, 4, V>& v) { set(v); }
     template <class V> FW_CUDA_FUNC Vec4f& operator=(const VectorBase<F32, 4, V>& v) { set(v); return *this; }
@@ -543,9 +527,7 @@ public:
     FW_CUDA_FUNC    void            setZero     (void)                      { set((T)0); }
     FW_CUDA_FUNC    void            setIdentity (void)                      { setZero(); for (int i = 0; i < L; i++) get(i, i) = (T)1; }
 
-#if !FW_CUDAOK
     FW_CUDA_FUNC    void            print       (void) const;
-#endif
 
     FW_CUDA_FUNC    T               det         (void) const;
     FW_CUDA_FUNC    S               transposed  (void) const;
@@ -671,9 +653,7 @@ public:
     template <class V> FW_CUDA_FUNC Mat3f(const MatrixBase<F32, 3, V>& v) { set(v); }
     template <class V> FW_CUDA_FUNC Mat3f& operator=(const MatrixBase<F32, 3, V>& v) { set(v); return *this; }
 
-#if !FW_CUDAOK 
 	static			Mat3f			rotation	(const Vec3f& axis, F32 angle);		// Rotation of "angle" radians around "axis". Axis must be unit!
-#endif
 
 public:
     F32             m00, m10, m20;
@@ -693,11 +673,9 @@ public:
     FW_CUDA_FUNC    F32*            getPtr      (void)                      { return &m00; }
     static FW_CUDA_FUNC Mat4f       fromPtr     (const F32* ptr)            { Mat4f v; v.set(ptr); return v; }
 
-#if !FW_CUDAOK
-     Mat3f              getXYZ      (void) const;
+    Mat3f               getXYZ      (void) const;
     static  Mat4f       fitToView   (const Vec2f& pos, const Vec2f& size, const Vec2f& viewSize);
     static  Mat4f       perspective (F32 fov, F32 nearDist, F32 farDist);
-#endif
 
     template <class V> FW_CUDA_FUNC Mat4f(const MatrixBase<F32, 4, V>& v) { set(v); }
     template <class V> FW_CUDA_FUNC Mat4f& operator=(const MatrixBase<F32, 4, V>& v) { set(v); return *this; }
@@ -747,9 +725,7 @@ public:
 
     FW_CUDA_FUNC    operator        Mat3f       (void) const                { Mat3f r; for (int i = 0; i < 3 * 3; i++) r.set(i, (F32)get(i)); return r; }
 
-#if !FW_CUDAOK
     static FW_CUDA_FUNC Mat3d   	rotation	(const Vec3d& axis, F64 angle);		// Rotation of "angle" radians around "axis". Axis must be unit!
-#endif
 
     template <class V> FW_CUDA_FUNC Mat3d(const MatrixBase<F64, 3, V>& v) { set(v); }
     template <class V> FW_CUDA_FUNC Mat3d& operator=(const MatrixBase<F64, 3, V>& v) { set(v); return *this; }
@@ -903,7 +879,6 @@ FW_CUDA_FUNC Vector<T, L> MatrixBase<T, L, S>::getRow(int idx) const
 
 //------------------------------------------------------------------------
 
-#if !FW_CUDAOK
 template <class T, int L, class S> FW_CUDA_FUNC void MatrixBase<T, L, S>::print(void) const
 {
     for (int i = 0; i < L; i++)
@@ -913,7 +888,6 @@ template <class T, int L, class S> FW_CUDA_FUNC void MatrixBase<T, L, S>::print(
         printf("\n");
     }
 }
-#endif
 
 //------------------------------------------------------------------------
 

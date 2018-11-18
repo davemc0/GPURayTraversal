@@ -81,7 +81,7 @@ public:
 
     inline void         reset       (S size = 0);                       // Discards old contents, and resets size & capacity exactly to the given value.
     inline void         setCapacity (S numElements);                    // Resizes the allocation for exactly the given number of elements. Does not modify contents.
-    inline void         compact     (void);                             // Shrinks the allocation to the match the current size. Does not modify contents.
+    inline void         compact     (void);                             // Shrinks the allocation to match the current size. Does not modify contents.
     inline void         set         (const T* ptr, S size);             // Discards old contents, and re-initializes the ArrayBase from the given memory location.
     inline void         set         (const ArrayBase<T,S>& other);      // Discards old contents, and re-initializes the ArrayBase by cloning the given ArrayBase.
 
@@ -106,7 +106,7 @@ public:
 
     inline T            remove      (S idx);                                       // Removes the given element and returns its value. Shifts the following elements down.
     inline void         remove      (S start, S end);                              // Removes a range of elements (start..end-1). Shifts the following elements down.
-    inline T&           removeLast  (void);                             // Removes the last element and returns a reference to its value.
+    inline T&           removeLast  (void);                                        // Removes the last element and returns a reference to its value.
     inline T            removeSwap  (S idx);                                       // Removes the given element and returns its value. Swaps in the last element to fill the vacant slot.
     inline void         removeSwap  (S start, S end);                              // Removes a range of elements (start..end-1). Swaps in the N last element to fill the vacant slots.
     inline T*           replace     (S start, S end, S size);                      // remove(start, end), insert(start, NULL, size)

@@ -25,32 +25,43 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "bvh/BVHNode.hpp"
-#include "bvh/SplitBVHBuilder.hpp"
+#include "bvh/GPUSplitBVHBuilder.hpp"
 #include "base/Sort.hpp"
 
-using namespace FW;
+namespace {
+    float myrandf()
+    {
+        int randi = (rand() | (rand() << 15)) & 0x3fffffff;
+        float randf = randi / float(0x3fffffff);
 
+        return randf;
+    }
+};
+
+#if 0
 //------------------------------------------------------------------------
-
-SplitBVHBuilder::SplitBVHBuilder(BVH& bvh, const BVH::BuildParams& params)
-:   m_bvh           (bvh),
-    m_platform      (bvh.getPlatform()),
-    m_params        (params),
-    m_minOverlap    (0.0f),
-    m_sortDim       (-1)
+FW::GPUSplitBVHBuilder::GPUSplitBVHBuilder(BVH& bvh, const BVH::BuildParams& params)
+    : m_bvh(bvh),
+    m_platform(bvh.getPlatform()),
+    m_params(params),
+    m_minOverlap(0.0f),
+    m_sortDim(-1)
 {
 }
+#endif
+#if 1
 
 //------------------------------------------------------------------------
 
-SplitBVHBuilder::~SplitBVHBuilder(void)
+FW::GPUSplitBVHBuilder::~GPUSplitBVHBuilder(void)
 {
 }
+#endif
+#if 0
 
 //------------------------------------------------------------------------
 
-BVHNode* SplitBVHBuilder::run(void)
+FW::BVHNode* FW::GPUSplitBVHBuilder::run(void)
 {
     if (m_params.enablePrints)
         printf("SBVH alpha=%g minLeafSize=%d maxLeafSize=%d\n", m_params.splitAlpha, m_platform.getMinLeafSize(), m_platform.getMaxLeafSize());
@@ -72,7 +83,7 @@ BVHNode* SplitBVHBuilder::run(void)
         rootSpec.bounds.grow(m_refStack[i].bounds);
     }
 
-    // Benchy();
+    Benchy();
 
     // Initialize rest of the members.
 
@@ -89,16 +100,18 @@ BVHNode* SplitBVHBuilder::run(void)
     // Done.
 
     if (m_params.enablePrints)
-        printf("SplitBVHBuilder: progress %.0f%%, duplicates %.0f%%\n",
+        printf("GPUSplitBVHBuilder: progress %.0f%%, duplicates %.0f%%\n",
             100.0f, (F32)m_numDuplicates / (F32)m_bvh.getScene()->getNumTriangles() * 100.0f);
     return root;
 }
+#endif
+#if 1
 
 //------------------------------------------------------------------------
 
-bool SplitBVHBuilder::sortCompare(void* data, int idxA, int idxB)
+bool FW::GPUSplitBVHBuilder::sortCompare(void* data, int idxA, int idxB)
 {
-    const SplitBVHBuilder* ptr = (const SplitBVHBuilder*)data;
+    const GPUSplitBVHBuilder* ptr = (const GPUSplitBVHBuilder*)data;
     int dim = ptr->m_sortDim;
     const Reference& ra = ptr->m_refStack[idxA];
     const Reference& rb = ptr->m_refStack[idxB];
@@ -106,30 +119,33 @@ bool SplitBVHBuilder::sortCompare(void* data, int idxA, int idxB)
     F32 cb = rb.bounds.min()[dim] + rb.bounds.max()[dim];
     return (ca < cb || (ca == cb && ra.triIdx < rb.triIdx));
 }
+#endif
+#if 0
 
 //------------------------------------------------------------------------
 
-void SplitBVHBuilder::sortSwap(void* data, int idxA, int idxB)
+void FW::GPUSplitBVHBuilder::sortSwap(void* data, int idxA, int idxB)
 {
-    SplitBVHBuilder* ptr = (SplitBVHBuilder*)data;
+    GPUSplitBVHBuilder* ptr = (GPUSplitBVHBuilder*)data;
     swap(ptr->m_refStack[idxA], ptr->m_refStack[idxB]);
 }
+#endif
+#if 1
 
 //------------------------------------------------------------------------
 
-BVHNode* SplitBVHBuilder::buildNode(NodeSpec spec, int level, F32 progressStart, F32 progressEnd)
+FW::BVHNode* FW::GPUSplitBVHBuilder::buildNode(NodeSpec spec, int level, F32 progressStart, F32 progressEnd)
 {
     // Display progress.
 
     if (m_params.enablePrints && m_progressTimer.getElapsed() >= 1.0f)
     {
-        printf("SplitBVHBuilder: progress %.0f%%, duplicates %.0f%%\r",
+        printf("GPUSplitBVHBuilder: progress %.0f%%, duplicates %.0f%%\r",
             progressStart * 100.0f, (F32)m_numDuplicates / (F32)m_bvh.getScene()->getNumTriangles() * 100.0f);
         m_progressTimer.start();
     }
 
     // Remove degenerates.
-    // XXX I think this is only necessary at the root. Below that the splitter should be able to not make degenerates.
     {
         int firstRef = m_refStack.getSize() - spec.numRef;
         for (int i = m_refStack.getSize() - 1; i >= firstRef; i--)
@@ -143,10 +159,8 @@ BVHNode* SplitBVHBuilder::buildNode(NodeSpec spec, int level, F32 progressStart,
 
     // Small enough or too deep => create leaf.
 
-    if (spec.numRef <= m_platform.getMinLeafSize() || level >= MaxDepth) {
-        m_params.stats->forcedLeaves++;
+    if (spec.numRef <= m_platform.getMinLeafSize() || level >= MaxDepth)
         return createLeaf(spec);
-    }
 
     // Find split candidates.
 
@@ -186,21 +200,24 @@ BVHNode* SplitBVHBuilder::buildNode(NodeSpec spec, int level, F32 progressStart,
     BVHNode* leftNode = buildNode(left, level + 1, progressMid, progressEnd);
     return new InnerNode(spec.bounds, leftNode, rightNode);
 }
+#endif
+#if 0
 
 //------------------------------------------------------------------------
 
-BVHNode* SplitBVHBuilder::createLeaf(const NodeSpec& spec)
+FW::BVHNode* FW::GPUSplitBVHBuilder::createLeaf(const NodeSpec& spec)
 {
-    // Remove the node's triangles from refStack and add them to tris
     Array<S32>& tris = m_bvh.getTriIndices();
     for (int i = 0; i < spec.numRef; i++)
         tris.add(m_refStack.removeLast().triIdx);
     return new LeafNode(spec.bounds, tris.getSize() - spec.numRef, tris.getSize());
 }
+#endif
+#if 1
 
 //------------------------------------------------------------------------
 
-SplitBVHBuilder::ObjectSplit SplitBVHBuilder::findObjectSplit(const NodeSpec& spec, F32 nodeSAH)
+FW::GPUSplitBVHBuilder::ObjectSplit FW::GPUSplitBVHBuilder::findObjectSplit(const NodeSpec& spec, F32 nodeSAH)
 {
     ObjectSplit split;
     const Reference* refPtr = m_refStack.getPtr(m_refStack.getSize() - spec.numRef);
@@ -242,10 +259,12 @@ SplitBVHBuilder::ObjectSplit SplitBVHBuilder::findObjectSplit(const NodeSpec& sp
     }
     return split;
 }
+#endif
+#if 0
 
 //------------------------------------------------------------------------
 
-void SplitBVHBuilder::performObjectSplit(NodeSpec& left, NodeSpec& right, const NodeSpec& spec, const ObjectSplit& split)
+void FW::GPUSplitBVHBuilder::performObjectSplit(NodeSpec& left, NodeSpec& right, const NodeSpec& spec, const ObjectSplit& split)
 {
     m_sortDim = split.sortDim;
     sort(this, m_refStack.getSize() - spec.numRef, m_refStack.getSize(), sortCompare, sortSwap);
@@ -255,20 +274,19 @@ void SplitBVHBuilder::performObjectSplit(NodeSpec& left, NodeSpec& right, const 
     right.numRef = spec.numRef - split.numLeft;
     right.bounds = split.rightBounds;
 }
+#endif
+#if 1
 
 //------------------------------------------------------------------------
 
-SplitBVHBuilder::SpatialSplit SplitBVHBuilder::findSpatialSplit(const NodeSpec& spec, F32 nodeSAH)
+FW::GPUSplitBVHBuilder::SpatialSplit FW::GPUSplitBVHBuilder::findSpatialSplit(const NodeSpec& spec, F32 nodeSAH)
 {
-    if (spec.numRef > 100000000) {
+    // Initialize bins.
+
+    if (spec.numRef > 100000) {
         printf("findSpatialSplit(%d)", spec.numRef);
         m_progressTimer.start();
     }
-
-    const Vec3i* tris = (const Vec3i*)m_bvh.getScene()->getTriVtxIndexBuffer().getPtr();
-    const Vec3f* verts = (const Vec3f*)m_bvh.getScene()->getVtxPosBuffer().getPtr();
-
-    // Initialize bins.
 
     Vec3f origin = spec.bounds.min();
     Vec3f binSize = (spec.bounds.max() - origin) * (1.0f / (F32)NumSpatialBins);
@@ -299,7 +317,7 @@ SplitBVHBuilder::SpatialSplit SplitBVHBuilder::findSpatialSplit(const NodeSpec& 
             for (int i = firstBin[dim]; i < lastBin[dim]; i++)
             {
                 Reference leftRef, rightRef;
-                splitReference(leftRef, rightRef, currRef, dim, origin[dim] + binSize[dim] * (F32)(i + 1), tris, verts);
+                splitReference(leftRef, rightRef, currRef, dim, origin[dim] + binSize[dim] * (F32)(i + 1));
                 m_bins[dim][i].bounds.grow(leftRef.bounds);
                 currRef = rightRef;
             }
@@ -345,25 +363,24 @@ SplitBVHBuilder::SpatialSplit SplitBVHBuilder::findSpatialSplit(const NodeSpec& 
         }
     }
 
-    if (spec.numRef > 100000000) {
+    if (spec.numRef > 100000) {
         printf(" t=%f\n", m_progressTimer.end());
     }
 
     return split;
 }
+#endif
+#if 0
 
 //------------------------------------------------------------------------
 
-void SplitBVHBuilder::performSpatialSplit(NodeSpec& left, NodeSpec& right, const NodeSpec& spec, const SpatialSplit& split)
+void FW::GPUSplitBVHBuilder::performSpatialSplit(NodeSpec& left, NodeSpec& right, const NodeSpec& spec, const SpatialSplit& split)
 {
     // Categorize references and compute bounds.
     //
     // Left-hand side:      [leftStart, leftEnd[
     // Uncategorized/split: [leftEnd, rightStart[
     // Right-hand side:     [rightStart, refs.getSize()[
-
-    const Vec3i* tris = (const Vec3i*)m_bvh.getScene()->getTriVtxIndexBuffer().getPtr();
-    const Vec3f* verts = (const Vec3f*)m_bvh.getScene()->getVtxPosBuffer().getPtr();
 
     Array<Reference>& refs = m_refStack;
     int leftStart = refs.getSize() - spec.numRef;
@@ -397,7 +414,7 @@ void SplitBVHBuilder::performSpatialSplit(NodeSpec& left, NodeSpec& right, const
         // Split reference.
 
         Reference lref, rref;
-        splitReference(lref, rref, refs[leftEnd], split.dim, split.pos, tris, verts);
+        splitReference(lref, rref, refs[leftEnd], split.dim, split.pos);
 
         // Compute SAH for duplicate/unsplit candidates.
 
@@ -450,10 +467,12 @@ void SplitBVHBuilder::performSpatialSplit(NodeSpec& left, NodeSpec& right, const
     left.numRef = leftEnd - leftStart;
     right.numRef = refs.getSize() - rightStart;
 }
+#endif
+#if 1
 
 //------------------------------------------------------------------------
 
-void SplitBVHBuilder::splitReference(Reference& left, Reference& right, const Reference& ref, int dim, F32 pos, const Vec3i* tris, const Vec3f* verts)
+void FW::GPUSplitBVHBuilder::splitReference(Reference& left, Reference& right, const Reference& ref, int dim, F32 pos)
 {
     // Initialize references.
 
@@ -462,9 +481,11 @@ void SplitBVHBuilder::splitReference(Reference& left, Reference& right, const Re
 
     // Loop over vertices/edges.
 
+    const Vec3i* tris = (const Vec3i*)m_bvh.getScene()->getTriVtxIndexBuffer().getPtr();
+    const Vec3f* verts = (const Vec3f*)m_bvh.getScene()->getVtxPosBuffer().getPtr();
     const Vec3i& inds = tris[ref.triIdx];
     const Vec3f* v1 = &verts[inds.z];
-    
+
     for (int i = 0; i < 3; i++)
     {
         const Vec3f* v0 = v1;
@@ -496,5 +517,81 @@ void SplitBVHBuilder::splitReference(Reference& left, Reference& right, const Re
     left.bounds.intersect(ref.bounds);
     right.bounds.intersect(ref.bounds);
 }
+#endif
+#if 0
 
 //------------------------------------------------------------------------
+
+float BenchyMcBenchfaceG(size_t N)
+{
+    FW::Timer tim;
+    tim.start();
+
+    unsigned long long cnt = 0;
+
+    for (unsigned long long i = 0; i < N; i++) {
+        float x = myrandf();
+        float y = myrandf();
+        float r = sqrtf(x * x + y * y);
+
+        if (r < 1.0f)
+            cnt++;
+    }
+
+    float pi = 4.0f * (float)cnt / (float)N;
+
+    printf("G pi=%f t=%f\n", pi, tim.end());
+
+    return pi;
+}
+
+float BenchyBench2(size_t N)
+{
+    FW::Timer tim;
+    tim.start();
+
+    for (int i = 0; i < N; i++) {
+        void* ptr;
+        // Allocates a 64KB page on every call (no sub-allocator).
+        // 4.14 sec to do 64k allocs of 16KB each (but it provides them using 64KB pages)
+        // Sometimes uses 96KB, 128KB, 192KB
+        // Requesting 64KB allocs provides them on 2MB pages.
+        cudaMallocManaged(&ptr, (1<<10), cudaMemAttachGlobal);
+        //if ((i % 10000) == 0)
+            printf("i=%d t=%f 0x%016llx\n", i, tim.getElapsed(), (unsigned long long)ptr);
+    }
+
+    printf("G t=%f\n", tim.end());
+
+    return 0.f;
+}
+#endif
+#if 0
+
+void FW::GPUSplitBVHBuilder::Benchy()
+{
+    FW::Timer tim;
+    tim.start();
+
+    const size_t N = 1000001;
+    AABB final;
+
+    for (unsigned long long i = 0; i < N; i++) {
+        Reference rr = m_refStack[rand() % m_refStack.getSize()];
+
+        for (int s = 0; s < 10; s++) {
+            int dim = rand() % 3;
+            float split = rr.bounds.min()[dim] + myrandf() * (rr.bounds.max() - rr.bounds.min())[dim];
+
+            Reference leftRef, rightRef;
+            splitReference(leftRef, rightRef, rr, dim, split);
+            rr = leftRef.bounds.area() > rightRef.bounds.area() ? leftRef : rightRef;
+            final.grow(rr.bounds);
+        }
+        if ((i % 1000000) == 0)
+            printf("G i=%lld s=%f t=%f\n", i, final.area(), tim.getElapsed());
+    }
+
+    exit(0);
+}
+#endif

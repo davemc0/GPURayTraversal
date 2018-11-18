@@ -49,9 +49,11 @@ public:
     {
         Hint_PageLock   = 1 << 0,
         Hint_CudaGL     = 1 << 1,
+        Hint_Managed    = 1 << 2, // Uses cudaMallocManaged
+        Hint_Owned      = 1 << 3, // This Buffer owns the only copies.
 
         Hint_None       = 0,
-        Hint_All        = (1 << 2) - 1
+        Hint_All        = (1 << 3) - 1
     };
 
 public:

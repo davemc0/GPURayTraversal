@@ -27,25 +27,11 @@
 
 #pragma once
 
-#define FW_CUDA_ALWAYS 1
-
- // Change "!FW_CUDA_ALWAYS" to "!FW_CUDAOK" to enable them always.
-#define FW_CUDAOK 0
-
- // For things that still can't make it through nvcc, even in CUDA 10
-#ifdef __CUDACC__
-#   define FW_CUDA10 1
-#else
-#   define FW_CUDA10 0
-#endif
-
-#if !FW_CUDAOK
 #pragma warning(disable:4530) // C++ exception handler used, but unwind semantics are not enabled.
 #include <new>
-// utility gets us std::swap
 #include <utility>
+using std::swap;
 #include <string.h>
-#endif
 
 //------------------------------------------------------------------------
 
@@ -65,25 +51,25 @@
 #   define FW_64    0
 #endif
 
-#if FW_CUDA10 && !defined(__CUDA_ARCH__)
-//#error What's going on here?
-//#   define __CUDA_ARCH__ 100 // e.g. 120 = compute capability 1.2
+#ifdef __CUDA_ARCH__
+#   define FW_CUDA_DEV 1
+#else
+#   define FW_CUDA_DEV 0
 #endif
 
-#if (FW_DEBUG || defined(FW_ENABLE_ASSERT)) && !FW_CUDA10
+#ifdef __CUDACC__
+// Think about this. Need the right thing for device code, host code in NVCC, and host code in host compiler.
+#   define FW_CUDA_FUNC     __host__ __device__ __inline__
+#   define FW_CUDA_CONST    static const __constant__
+#else
+#   define FW_CUDA_FUNC     __forceinline
+#   define FW_CUDA_CONST    static const
+#endif
+
+#if (FW_DEBUG || defined(FW_ENABLE_ASSERT)) && !FW_CUDA_DEV
 #   define FW_ASSERT(X) ((X) ? ((void)0) : FW::fail("Assertion failed!\n%s:%d\n%s", __FILE__, __LINE__, #X))
 #else
 #   define FW_ASSERT(X) ((void)0)
-#endif
-
-#if FW_CUDA10
-#   define FW_CUDA_FUNC     __host__ __device__ __inline__
-#   define FW_CUDA_HD_FUNC  __host__ __device__ __inline__
-#   define FW_CUDA_CONST    static const __constant__
-#else
-#   define FW_CUDA_FUNC     inline
-#   define FW_CUDA_HD_FUNC  inline
-#   define FW_CUDA_CONST    static const
 #endif
 
 #define FW_UNREF(X)         ((void)(X))
@@ -104,13 +90,8 @@ typedef float               F32;
 typedef double              F64;
 typedef void                (*FuncPtr)(void);
 
-#if FW_CUDA_ALWAYS
 typedef unsigned long long  U64;
 typedef signed long long    S64;
-#else
-typedef unsigned __int64    U64;
-typedef signed __int64      S64;
-#endif
 
 #if FW_64
 typedef S64                 SPTR;
@@ -136,18 +117,18 @@ typedef __w64 U32           UPTR;
 
 //------------------------------------------------------------------------
 
-#if !FW_CUDAOK
-
 class String;
 
 // Common functionality.
+
+// #define FW_OVERRIDE_STD_LIB
 
 #ifdef FW_OVERRIDE_STD_LIB
 void*           malloc          (size_t size);
 void            free            (void* ptr);
 void*           realloc         (void* ptr, size_t size);
 
-void            printf          (const char* fmt, ...);
+//void            printf          (const char* fmt, ...);
 #endif
 String          Sprintf         (const char* fmt, ...);
 
@@ -189,38 +170,34 @@ void            profilePush     (const char* id);
 void            profilePop      (void);
 void            profileEnd      (bool printResults = true);
 
-#endif
-
 //------------------------------------------------------------------------
 // min(), max(), clamp().
 
-//#if FW_CUDA_ALWAYS
-//template <class T> FW_CUDA_FUNC void swap(T& a, T& b) { T t = a; a = b; b = t; }
-//#else
 using std::swap;
-//#endif
 
 #define FW_SPECIALIZE_MINMAX(TEMPLATE, T, MIN, MAX) \
-    TEMPLATE FW_CUDA_HD_FUNC T min(T a, T b) { return MIN; } \
-    TEMPLATE FW_CUDA_HD_FUNC T max(T a, T b) { return MAX; } \
-    TEMPLATE FW_CUDA_HD_FUNC T min(T a, T b, T c) { return min(min(a, b), c); } \
-    TEMPLATE FW_CUDA_HD_FUNC T max(T a, T b, T c) { return max(max(a, b), c); } \
-    TEMPLATE FW_CUDA_HD_FUNC T min(T a, T b, T c, T d) { return min(min(min(a, b), c), d); } \
-    TEMPLATE FW_CUDA_HD_FUNC T max(T a, T b, T c, T d) { return max(max(max(a, b), c), d); } \
-    TEMPLATE FW_CUDA_HD_FUNC T min(T a, T b, T c, T d, T e) { return min(min(min(min(a, b), c), d), e); } \
-    TEMPLATE FW_CUDA_HD_FUNC T max(T a, T b, T c, T d, T e) { return max(max(max(max(a, b), c), d), e); } \
-    TEMPLATE FW_CUDA_HD_FUNC T min(T a, T b, T c, T d, T e, T f) { return min(min(min(min(min(a, b), c), d), e), f); } \
-    TEMPLATE FW_CUDA_HD_FUNC T max(T a, T b, T c, T d, T e, T f) { return max(max(max(max(max(a, b), c), d), e), f); } \
-    TEMPLATE FW_CUDA_HD_FUNC T min(T a, T b, T c, T d, T e, T f, T g) { return min(min(min(min(min(min(a, b), c), d), e), f), g); } \
-    TEMPLATE FW_CUDA_HD_FUNC T max(T a, T b, T c, T d, T e, T f, T g) { return max(max(max(max(max(max(a, b), c), d), e), f), g); } \
-    TEMPLATE FW_CUDA_HD_FUNC T min(T a, T b, T c, T d, T e, T f, T g, T h) { return min(min(min(min(min(min(min(a, b), c), d), e), f), g), h); } \
-    TEMPLATE FW_CUDA_HD_FUNC T max(T a, T b, T c, T d, T e, T f, T g, T h) { return max(max(max(max(max(max(max(a, b), c), d), e), f), g), h); } \
-    TEMPLATE FW_CUDA_HD_FUNC T clamp(T v, T lo, T hi) { return min(max(v, lo), hi); }
+    TEMPLATE FW_CUDA_FUNC T min(T a, T b) { return MIN; } \
+    TEMPLATE FW_CUDA_FUNC T max(T a, T b) { return MAX; } \
+    TEMPLATE FW_CUDA_FUNC T min(T a, T b, T c) { return min(min(a, b), c); } \
+    TEMPLATE FW_CUDA_FUNC T max(T a, T b, T c) { return max(max(a, b), c); } \
+    TEMPLATE FW_CUDA_FUNC T min(T a, T b, T c, T d) { return min(min(min(a, b), c), d); } \
+    TEMPLATE FW_CUDA_FUNC T max(T a, T b, T c, T d) { return max(max(max(a, b), c), d); } \
+    TEMPLATE FW_CUDA_FUNC T min(T a, T b, T c, T d, T e) { return min(min(min(min(a, b), c), d), e); } \
+    TEMPLATE FW_CUDA_FUNC T max(T a, T b, T c, T d, T e) { return max(max(max(max(a, b), c), d), e); } \
+    TEMPLATE FW_CUDA_FUNC T min(T a, T b, T c, T d, T e, T f) { return min(min(min(min(min(a, b), c), d), e), f); } \
+    TEMPLATE FW_CUDA_FUNC T max(T a, T b, T c, T d, T e, T f) { return max(max(max(max(max(a, b), c), d), e), f); } \
+    TEMPLATE FW_CUDA_FUNC T min(T a, T b, T c, T d, T e, T f, T g) { return min(min(min(min(min(min(a, b), c), d), e), f), g); } \
+    TEMPLATE FW_CUDA_FUNC T max(T a, T b, T c, T d, T e, T f, T g) { return max(max(max(max(max(max(a, b), c), d), e), f), g); } \
+    TEMPLATE FW_CUDA_FUNC T min(T a, T b, T c, T d, T e, T f, T g, T h) { return min(min(min(min(min(min(min(a, b), c), d), e), f), g), h); } \
+    TEMPLATE FW_CUDA_FUNC T max(T a, T b, T c, T d, T e, T f, T g, T h) { return max(max(max(max(max(max(max(a, b), c), d), e), f), g), h); } \
+    TEMPLATE FW_CUDA_FUNC T clamp(T v, T lo, T hi) { return min(max(v, lo), hi); }
 
+// Generalized specializations for any type
 FW_SPECIALIZE_MINMAX(template <class T>, T&, (a < b) ? a : b, (a > b) ? a : b)
 FW_SPECIALIZE_MINMAX(template <class T>, const T&, (a < b) ? a : b, (a > b) ? a : b)
 
-#if FW_CUDA10
+#if FW_CUDA_DEV
+//These should be just for device code.
 FW_SPECIALIZE_MINMAX(, U32, ::min(a, b), ::max(a, b))
 FW_SPECIALIZE_MINMAX(, S32, ::min(a, b), ::max(a, b))
 FW_SPECIALIZE_MINMAX(, U64, ::min(a, b), ::max(a, b))
@@ -232,7 +209,7 @@ FW_SPECIALIZE_MINMAX(, F64, ::fmin(a, b), ::fmax(a, b))
 //------------------------------------------------------------------------
 // CUDA utilities.
 
-#if FW_CUDA_ALWAYS
+#if FW_CUDA_DEV
 #   define globalThreadIdx (threadIdx.x + blockDim.x * (threadIdx.y + blockDim.y * (blockIdx.x + gridDim.x * blockIdx.y)))
 #endif
 
@@ -240,15 +217,13 @@ FW_SPECIALIZE_MINMAX(, F64, ::fmin(a, b), ::fmax(a, b))
 // new, delete.
 }
 
-#ifndef FW_DO_NOT_OVERRIDE_NEW_DELETE
-#if !FW_CUDAOK
+//#define FW_DO_NOT_OVERRIDE_NEW_DELETE
 
+#ifndef FW_DO_NOT_OVERRIDE_NEW_DELETE
 void*    operator new        (size_t size);
 void*    operator new[]      (size_t size);
 void     operator delete     (void* ptr)  ;
 void     operator delete[]   (void* ptr)  ;
-
-#endif
 #endif // FW_DO_NOT_OVERRIDE_NEW_DELETE
 
 //------------------------------------------------------------------------

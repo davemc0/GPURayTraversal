@@ -25,6 +25,9 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+// XXX
+#define FW_ENABLE_ASSERT
+
 #include "base/Defs.hpp"
 #include "base/String.hpp"
 #include "base/Thread.hpp"
@@ -37,11 +40,14 @@
 #include <stdarg.h>
 #include <malloc.h>
 
+// For debugging malloc
+#include <set>
+
 using namespace FW;
 
 //------------------------------------------------------------------------
 
-#define FW_MEM_DEBUG    0
+#define FW_MEM_DEBUG    1
 
 //------------------------------------------------------------------------
 
@@ -119,6 +125,7 @@ static void deinitString(void* str)
 
 #ifdef FW_OVERRIDE_STD_LIB
 
+#if 0
 void* FW::malloc(size_t size)
 {
     FW_ASSERT(size >= 0);
@@ -130,20 +137,20 @@ void* FW::malloc(size_t size)
     if (!alloc)
         fail("Out of memory!");
 
-    void* ptr           = alloc + 1;
-    alloc->prev         = s_memAllocs.prev;
-    alloc->next         = &s_memAllocs;
-    alloc->prev->next   = alloc;
-    alloc->next->prev   = alloc;
-    alloc->size         = size;
-    alloc->ownerID      = "Uncategorized";
-    s_memoryUsed        += size;
+    void* ptr = alloc + 1;
+    alloc->prev = s_memAllocs.prev;
+    alloc->next = &s_memAllocs;
+    alloc->prev->next = alloc;
+    alloc->next->prev = alloc;
+    alloc->size = size;
+    alloc->ownerID = "Uncategorized";
+    s_memoryUsed += size;
 
     if (!s_memPushingOwner)
     {
         U32 threadID = Thread::getID();
         if (s_memOwnerStacks.contains(threadID) && s_memOwnerStacks[threadID].getSize())
-               alloc->ownerID = s_memOwnerStacks[threadID].getLast();
+            alloc->ownerID = s_memOwnerStacks[threadID].getLast();
     }
 
     s_lock.leave();
@@ -160,8 +167,6 @@ void* FW::malloc(size_t size)
 
     return ptr;
 }
-
-//------------------------------------------------------------------------
 
 void FW::free(void* ptr)
 {
@@ -187,6 +192,104 @@ void FW::free(void* ptr)
     ::free(ptr);
 #endif
 }
+
+#else
+
+void* FW::malloc(size_t size)
+{
+    FW_ASSERT(size >= 0);
+
+#define THRESH_MEM 3276800
+
+#if FW_MEM_DEBUG
+    s_lock.enter();
+
+    AllocHeader* alloc;
+    if (size < THRESH_MEM) {
+        alloc = (AllocHeader*)::malloc(sizeof(AllocHeader) + size);
+    }
+    else {
+        cudaError_t res = cudaMallocManaged((void**)&alloc, sizeof(AllocHeader), cudaMemAttachGlobal);
+        if (res != cudaSuccess)
+            fail("cudaMallocManaged failure!");
+    }
+
+    if (!alloc)
+        fail("Out of memory!");
+
+    void* ptr = alloc + 1;
+    alloc->prev = s_memAllocs.prev;
+    alloc->next = &s_memAllocs;
+    alloc->prev->next = alloc;
+    alloc->next->prev = alloc;
+    alloc->size = size;
+    alloc->ownerID = "Uncategorized";
+    s_memoryUsed += size;
+
+    if (!s_memPushingOwner)
+    {
+        U32 threadID = Thread::getID();
+        if (s_memOwnerStacks.contains(threadID) && s_memOwnerStacks[threadID].getSize())
+            alloc->ownerID = s_memOwnerStacks[threadID].getLast();
+    }
+
+    s_lock.leave();
+
+#else
+    void* ptr;
+    // ptr = ::malloc(size);
+    cudaError_t res = cudaMallocManaged(&alloc, sizeof(AllocHeader), cudaMemAttachGlobal);
+    if (res != cudaSuccess)
+        fail("cudaMallocManaged failure!");
+
+    if (!ptr)
+        fail("Out of memory!");
+
+    s_lock.enter();
+    s_memoryUsed += _msize(ptr);
+    s_lock.leave();
+#endif
+
+    return ptr;
+}
+
+//------------------------------------------------------------------------
+
+void FW::free(void* ptr)
+{
+    if (!ptr)
+        return;
+
+#if FW_MEM_DEBUG
+    s_lock.enter();
+
+    AllocHeader* alloc = (AllocHeader*)ptr - 1;
+    alloc->prev->next = alloc->next;
+    alloc->next->prev = alloc->prev;
+    s_memoryUsed -= alloc->size;
+    if (alloc->size < THRESH_MEM) {
+        ::free(alloc);
+    }
+    else {
+        cudaError_t res = cudaFree(alloc);
+        if (res != cudaSuccess)
+            fail("cudaFree failure!");
+    }
+
+    s_lock.leave();
+
+#else
+    s_lock.enter();
+    s_memoryUsed -= _msize(ptr);
+    s_lock.leave();
+
+    //::free(ptr);
+    cudaError_t res = cudaFree(ptr);
+    if (res != cudaSuccess)
+        fail("cudaFree failure!");
+#endif
+}
+#endif
 
 //------------------------------------------------------------------------
 
@@ -224,6 +327,7 @@ void* FW::realloc(void* ptr, size_t size)
 
 //------------------------------------------------------------------------
 
+#if 0
 void FW::printf(const char* fmt, ...)
 {
     s_lock.enter();
@@ -237,6 +341,7 @@ void FW::printf(const char* fmt, ...)
     va_end(args);
     s_lock.leave();
 }
+#endif
 
 #endif
 
@@ -667,19 +772,15 @@ void FW::profileEnd(bool printResults)
 //------------------------------------------------------------------------
 
 #ifndef FW_DO_NOT_OVERRIDE_NEW_DELETE
-#if !FW_CUDAOK
-
 #ifdef FW_OVERRIDE_STD_LIB
-void*    operator new        (size_t size) { return FW::malloc(size); }
-void*    operator new[](size_t size) { return FW::malloc(size); }
-void     operator delete     (void* ptr) { return FW::free(ptr); }
-void     operator delete[](void* ptr) { return FW::free(ptr); }
+void*    operator new        (size_t size) { /* printf("new=%lld ", size);     */ void* ptr = FW::malloc(size); /* printf("%llx ", (U64)ptr); */ return ptr; }
+void*    operator new[]      (size_t size) { /* printf("n[]=%lld ", size);     */ void* ptr = FW::malloc(size); /* printf("%llx ", (U64)ptr); */ return ptr; }
+void     operator delete     (void* ptr)   { /* printf("del=%llx ", (U64)ptr); */ return FW::free(ptr); }
+void     operator delete[]   (void* ptr)   { /* printf("d[]=%llx ", (U64)ptr); */ return FW::free(ptr); }
 #else
-void*    operator new        (size_t size) { return malloc(size); }
-void*    operator new[](size_t size) { return malloc(size); }
-void     operator delete     (void* ptr) { return free(ptr); }
-void     operator delete[](void* ptr) { return free(ptr); }
-#endif
-
+void*    operator new        (size_t size) { /*printf("new=%lld ", size);  */ return ::malloc(size); }
+void*    operator new[]      (size_t size) { return ::malloc(size); }
+void     operator delete     (void* ptr) { return ::free(ptr); }
+void     operator delete[]   (void* ptr) { return ::free(ptr); }
 #endif
 #endif // FW_DO_NOT_OVERRIDE_NEW_DELETE

@@ -1,5 +1,5 @@
 @echo off
-set LOG=benchmark.log
+set LOG=fastbench.log
 
 rem Find executable.
 

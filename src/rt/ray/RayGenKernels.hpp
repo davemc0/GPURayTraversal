@@ -85,7 +85,6 @@ struct RayGenShadowInput
 
 //------------------------------------------------------------------------
 
-#if FW_CUDA_ALWAYS
 extern "C"
 {
 
@@ -99,7 +98,6 @@ __constant__ RayGenShadowInput c_RayGenShadowInput;
 __global__ void rayGenShadowKernel(void);
 
 }
-#endif
 
 //------------------------------------------------------------------------
 }

@@ -26,6 +26,7 @@
  */
 
 #pragma once
+
 #include "bvh/BVH.hpp"
 #include "base/Timer.hpp"
 
@@ -33,7 +34,7 @@ namespace FW
 {
 //------------------------------------------------------------------------
 
-class SplitBVHBuilder
+class GPUSplitBVHBuilder
 {
 private:
     enum
@@ -41,6 +42,7 @@ private:
         MaxDepth        = 64,
         MaxSpatialDepth = 48,
         NumSpatialBins  = 128,
+        NumHostThreads  = 8,
     };
 
     struct Reference
@@ -86,11 +88,23 @@ private:
         S32                 exit;
     };
 
-public:
-                            SplitBVHBuilder     (BVH& bvh, const BVH::BuildParams& params);
-                            ~SplitBVHBuilder    (void);
+    // A request to intersect a triangle reference against a SpatialBin
+    struct BinTriIntReq
+    {
+        S32                 ref; // This is an array index, so should be a size_t.
+        S32                 bin;
+        S8                  dim;
+        S8                  enters; // This is the bin in which the reference enters the range
+        S8                  exits; // " exits
+    };
 
-    BVHNode*                run                 (void);
+public:
+                            GPUSplitBVHBuilder     (BVH& bvh, const BVH::BuildParams& params);
+                            ~GPUSplitBVHBuilder    (void);
+
+                            void * malloc(size_t x);
+
+                            BVHNode*                run                 (void);
 
 private:
     static bool             sortCompare         (void* data, int idxA, int idxB);
@@ -104,11 +118,11 @@ private:
 
     SpatialSplit            findSpatialSplit    (const NodeSpec& spec, F32 nodeSAH);
     void                    performSpatialSplit (NodeSpec& left, NodeSpec& right, const NodeSpec& spec, const SpatialSplit& split);
-    void                    splitReference      (Reference& left, Reference& right, const Reference& ref, int dim, F32 pos, const Vec3i* tris, const Vec3f* verts);
+    void                    splitReference      (Reference& left, Reference& right, const Reference& ref, int dim, F32 pos);
 
 private:
-                            SplitBVHBuilder     (const SplitBVHBuilder&); // forbidden
-    SplitBVHBuilder&        operator=           (const SplitBVHBuilder&); // forbidden
+                            GPUSplitBVHBuilder     (const GPUSplitBVHBuilder&); // forbidden
+    GPUSplitBVHBuilder&        operator=           (const GPUSplitBVHBuilder&); // forbidden
 
 private:
     BVH&                    m_bvh;
@@ -116,13 +130,18 @@ private:
     const BVH::BuildParams& m_params;
 
     Array<Reference>        m_refStack;
+    Array<S32>              m_reqIndices; // GPU-style parallelization (These are array indices so should be size_t)
+    Array<BinTriIntReq>     m_intersectReqs; // GPU-style parallelization
+
     F32                     m_minOverlap;
     Array<AABB>             m_rightBounds;
     S32                     m_sortDim;
     SpatialBin              m_bins[3][NumSpatialBins];
+    SpatialBin              m_parBins[NumHostThreads][3][NumSpatialBins];
 
     Timer                   m_progressTimer;
     S32                     m_numDuplicates;
+    bool                    m_doMulticore;
 };
 
 //------------------------------------------------------------------------

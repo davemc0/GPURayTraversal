@@ -1,123 +1,86 @@
-//#include "base/DeviceDefs.hpp"
-//#include "base/Math.hpp"
-
-#include <thrust/host_vector.h>
-#include <thrust/device_vector.h>
-#include <thrust/sort.h>
-
-
 #if 0
 
-struct multip
+#include "base/ManagedAllocator.hpp"
+#include <thrust/fill.h>
+#include <thrust/logical.h>
+#include <thrust/execution_policy.h>
+#include <vector>
+#include <algorithm>
+#include <numeric>
+#include <cassert>
+#include <iostream>
+
+// create a nickname for vectors which use a managed_allocator
+template<class T>
+using managed_vector = std::vector<T, managed_allocator<T>>;
+
+__global__ void increment_kernel(int *data, size_t n)
 {
-    __host__ __device__
-        int operator()(int x) { return x * 10; }
-};
+    size_t i = blockDim.x * blockIdx.x + threadIdx.x;
 
-void hostSort(size_t N)
-{
-    thrust::host_vector<float> a(N);
-    
-    //thrust::generate(a.begin(), a.end(), []() { return (float)rand(); });
-    thrust::generate(a.begin(), a.end(), rand);
-
-    thrust::sort(a.begin(), a.end());
-
-    //for each (auto var in a) {
-    //    std::cout << var << ' ';
-    //}
-    //std::cout << '\n';
+    if (i < n)
+    {
+        data[i] += 1;
+    }
 }
 
-float testReduce(size_t N)
+int main()
 {
-    thrust::host_vector<float> a(N);
-    thrust::device_vector<float> b(N);
-    thrust::device_vector<float> c(N);
+    size_t n = 1 << 20;
 
-    //thrust::generate(a.begin(), a.end(), []() { return (float)rand(); });
-    //thrust::generate(b.begin(), b.end(), rand);
+    managed_vector<int> vec(n);
 
-    // Copy to device
-    // b = a;
+    // we can use the vector from the host
+    std::iota(vec.begin(), vec.end(), 0);
 
-    //thrust::transform(a.begin(), a.end(), b.begin(), );
-    //thrust::transform(b.begin(), b.end(), c.begin(), multip());
-    thrust::transform(b.begin(), b.end(), c.begin(), [] __host__ __device__(float v) { return 10.f * v; });
+    std::vector<int> ref(n);
+    std::iota(ref.begin(), ref.end(), 0);
+    assert(std::equal(ref.begin(), ref.end(), vec.begin()));
 
-    thrust::sort(c.begin(), c.end());
+    // we can also use it in a CUDA kernel
+    size_t block_size = 256;
+    size_t num_blocks = (n + (block_size - 1)) / block_size;
 
-    // Copy to host
-    //a = c;
+    increment_kernel << <num_blocks, block_size >> > (vec.data(), vec.size());
 
-    float res = thrust::reduce(c.begin(), c.end());
+    cudaDeviceSynchronize();
 
-    // for each (auto var in a) {
-    //     std::cout << var << ' ';
-    // }
-    // std::cout << '\n';
+    std::for_each(ref.begin(), ref.end(), [](int& x)
+    {
+        x += 1;
+    });
 
-    return res;
-}
+    assert(std::equal(ref.begin(), ref.end(), vec.begin()));
 
-float testUVM(size_t N)
-{
-    printf("Testing UVM\n");
+    // we can also use it with Thrust algorithms
 
-    thrust::host_vector<float> a(N);
-    thrust::device_vector<float> b(N);
-    thrust::device_vector<float> c(N);
-    thrust::host_vector<float> d(N);
+    // by default, the Thrust algorithm will execute on the host with the managed_vector
+    thrust::fill(vec.begin(), vec.end(), 7);
+    assert(std::all_of(vec.begin(), vec.end(), [](int x)
+    {
+        return x == 7;
+    }));
 
-    thrust::generate(a.begin(), a.end(), rand);
+    // to execute on the device, use the thrust::device execution policy
+    thrust::fill(thrust::device, vec.begin(), vec.end(), 13);
 
-    float* aptr;
-    cudaError_t er = cudaMallocManaged(&aptr, N * sizeof(float));// , cudaStreamDefault);
+    // we need to synchronize before attempting to use the vector on the host
+    cudaDeviceSynchronize();
 
-    assert(er == cudaSuccess);
-    printf("aptr=0x%08llx er=%d\n", (unsigned long long)aptr, er);
+    // to execute on the host, use the thrust::host execution policy
+    assert(thrust::all_of(thrust::host, vec.begin(), vec.end(), [](int x)
+    {
+        return x == 13;
+    }));
 
-    for (int i = 0; i < N; i++)
-        aptr[i] = 3.14159f; // (float)rand();
+    std::cout << "OK" << std::endl;
 
-    thrust::transform(b.begin(), b.end(), c.begin(), [=]  __device__(float v) { return *aptr; });
-
-    d = c;
-
-    for(int i=0; i<16; i++)
-        std::cout << d[i] << ' ';
-    std::cout << '\n';
-
-    return 0.f;
+    return 0;
 }
 
 #endif
 
-// Kernel definition
-__global__ void VecAdd(float* A, float* B, float* C)
-{
-    int i = threadIdx.x;
-
-    C[i] = A[i] + B[i];
-}
-
-void testKernel(size_t N)
-{
-    thrust::device_vector<float> A(N);
-    thrust::device_vector<float> B(N);
-    thrust::device_vector<float> C(N);
-
-    int numBlocks = 1;
-    dim3 threadsPerBlock(32);
-    VecAdd<<<numBlocks, threadsPerBlock >>>(A.data().get(), (float*)B.data().get(), (float*)C.data().get());
-}
-
 float testThrust(size_t N)
 {
-
-    testKernel(N);
-    // testUVM();
-    //hostSort(N);
-
-    return 123.f;
+    return float(N);
 }

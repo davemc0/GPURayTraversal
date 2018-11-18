@@ -26,12 +26,18 @@
  */
 
 #pragma once
+
 #include "Scene.hpp"
-#include "bvh/BVHNode.hpp"
+#include "bvh/Platform.hpp"
 #include "ray/RayBuffer.hpp"
+#include "base/ArrayAllocator.hpp"
 
 namespace FW
 {
+
+    class BVHNode;
+    class InnerNode;
+    class LeafNode;
 
 struct RayStats
 {
@@ -93,7 +99,7 @@ public:
 
 public:
                         BVH                     (Scene* scene, const Platform& platform, const BuildParams& params);
-                        ~BVH                    (void)                  { if(m_root) m_root->deleteSubtree(); }
+                        ~BVH                    (void);
 
     Scene*              getScene                (void) const            { return m_scene; }
     const Platform&     getPlatform             (void) const            { return m_platform; }
@@ -113,6 +119,11 @@ private:
 
     BVHNode*            m_root;
     Array<S32>          m_triIndices;
+
+    ArrayAllocator<LeafNode>*  m_leafNodeAA;
+    ArrayAllocator<InnerNode>* m_innerNodeAA;
+    Buffer*             m_leafBuffer;
+    Buffer*             m_innerBuffer;
 };
 
 }

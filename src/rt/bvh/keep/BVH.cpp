@@ -25,37 +25,21 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#define FW_ENABLE_ASSERT
+
 #include "bvh/BVH.hpp"
-#include "bvh/BVHNode.hpp"
-#include "bvh/SplitBVHBuilder.hpp"
 #include "bvh/GPUSplitBVHBuilder.hpp"
+#include "bvh/SplitBVHBuilder.hpp"
+#include "bvh/RandomBVHBuilder.hpp"
 #include "bvhcmpr/Refine.hpp"
 
 using namespace FW;
-
-BVH::~BVH() { if (m_root) m_root->deleteSubtree(); }
 
 BVH::BVH(Scene* scene, const Platform& platform, const BuildParams& params)
 {
     FW_ASSERT(scene);
     m_scene = scene;
     m_platform = platform;
-
-    //All BVHNodes are allocated from these things.
-    size_t maxLeafNodes = size_t(scene->getNumTriangles() * 1.5f);
-    // Need to free the backing store sometime.
-
-    m_leafBuffer = new Buffer(nullptr, maxLeafNodes * sizeof(LeafNode), Buffer::Hint_Managed);
-    LeafNode* lptr = (LeafNode*)m_leafBuffer->getMutableCudaPtr();
-    m_leafNodeAA = new ArrayAllocator<LeafNode>();
-    m_leafNodeAA->init(lptr, maxLeafNodes);
-    LeafNode::s_AA = m_leafNodeAA;
-
-    m_innerBuffer = new Buffer(nullptr, maxLeafNodes * sizeof(InnerNode), Buffer::Hint_Managed);
-    InnerNode* dptr = (InnerNode*)m_innerBuffer->getMutableCudaPtr();
-    m_innerNodeAA = new ArrayAllocator<InnerNode>();
-    m_innerNodeAA->init(dptr, maxLeafNodes);
-    InnerNode::s_AA = m_innerNodeAA;
 
     if (params.enablePrints)
         printf("BVH builder: %d tris, %d vertices\n", scene->getNumTriangles(), scene->getNumVertices());
@@ -64,12 +48,33 @@ BVH::BVH(Scene* scene, const Platform& platform, const BuildParams& params)
 
     Ref.getTimer().start();
 
-    m_root = SplitBVHBuilder(*this, params).run();
-    //m_root = GPUSplitBVHBuilder(*this, params).run();
+    // Have one prim per leaf in SBVH, then refine it later
+	int oldMinLeafSize = m_platform.getMinLeafSize();
+	int oldMaxLeafSize = m_platform.getMaxLeafSize();
+	m_platform.setLeafPreferences(1, 1);
 
-    float sah = 0.f;
-    m_root->computeSubtreeValues(m_platform, m_root->getArea(), false, false);
-    sah = m_root->m_sah;
+    // XXX Disable splitting
+    BuildParams sparams = params;
+    sparams.doMulticore = false; // XXX
+    // sparams.splitAlpha = FW_F32_MAX;
+
+    m_root = GPUSplitBVHBuilder(*this, sparams).run();
+    //m_root = SplitBVHBuilder(*this, sparams).run();
+    // m_root = RandomBVHBuilder(*this, sparams, true).run();
+
+    m_platform.setLeafPreferences(oldMinLeafSize, oldMaxLeafSize);
+
+#if 0
+    // XXX Prune Tree
+    m_root->computeSubtreeValues(m_platform, m_root->getArea());
+    while (dynamic_cast<InnerNode*>(m_root)->m_children[0]->m_tris >= 3)
+        m_root = dynamic_cast<InnerNode*>(m_root)->m_children[0];
+    m_root->computeSubtreeValues(m_platform, m_root->getArea());
+
+    printTree(m_root);
+#endif
+
+    m_root->computeSubtreeValues(m_platform, m_root->getArea());
 
     if (params.enablePrints) {
         printf("BVH: Scene bounds: (%.1f,%.1f,%.1f) - (%.1f,%.1f,%.1f) ", m_root->m_bounds.min().x, m_root->m_bounds.min().y, m_root->m_bounds.min().z,
@@ -78,15 +83,25 @@ BVH::BVH(Scene* scene, const Platform& platform, const BuildParams& params)
         printf("sah=%.6f tt=%f t=%f\n", m_root->m_sah, Ref.getTimer().getTotal(), te);
     }
 
-    if(params.stats)
+    Ref.run();
+
+    m_root->computeSubtreeValues(m_platform, m_root->getArea(), false, false);
+    printf("Final sah=%.6f tt=%f t=%f\n", m_root->m_sah, Ref.getTimer().getTotal(), Ref.getTimer().end());
+
+    if (params.stats)
     {
-        params.stats->SAHCost           = sah;
+        params.stats->SAHCost           = m_root->m_sah;
         params.stats->branchingFactor   = 2;
         params.stats->numLeafNodes      = m_root->getSubtreeSize(BVH_STAT_LEAF_COUNT);
         params.stats->numInnerNodes     = m_root->getSubtreeSize(BVH_STAT_INNER_COUNT);
         params.stats->numTris           = m_root->getSubtreeSize(BVH_STAT_TRIANGLE_COUNT);
         params.stats->numChildNodes     = m_root->getSubtreeSize(BVH_STAT_CHILDNODE_COUNT);
-    }
+		params.stats->maxLeafDepth	    = m_root->getSubtreeSize(BVH_STAT_MAX_LEAF_DEPTH);
+		params.stats->minLeafDepth	    = m_root->getSubtreeSize(BVH_STAT_MIN_LEAF_DEPTH);
+		params.stats->mixedInnerNodes   = m_root->getSubtreeSize(BVH_STAT_MIXED_INNER_COUNT);
+		params.stats->leafInnerNodes    = m_root->getSubtreeSize(BVH_STAT_LEAF_INNER_COUNT);
+		params.stats->innerInnerNodes   = m_root->getSubtreeSize(BVH_STAT_INNER_INNER_COUNT);
+	}
 }
 
 static S32 currentTreelet;
@@ -188,4 +203,21 @@ void BVH::traceRecursive(BVHNode* node, Ray& ray, RayResult& result,bool needClo
         if(intersect1)
             traceRecursive(child1,ray,result,needClosestHit,stats);
     }
+}
+
+void BVH::printTree(BVHNode* node, int level)
+{
+	for (int e = 0; e < level; e++)
+		printf(" ");
+	printf("0x%016llx: prob=%f area=%f sah=%f tris=%d froz=%d ", (U64)node, node->m_probability, node->getArea(), node->m_sah, node->m_tris, node->m_frozen);
+	if (node->isLeaf()) {
+		LeafNode* l = dynamic_cast<LeafNode*>(node);
+		printf("L: %d %d\n", l->m_lo, l->m_hi);
+	}
+	else {
+		InnerNode* i = dynamic_cast<InnerNode*>(node);
+		printf("I:0x%016llx 0x%016llx\n", (U64)i->getChildNode(0), (U64)i->getChildNode(1));
+		printTree(i->getChildNode(0), level + 1);
+		printTree(i->getChildNode(1), level + 1);
+	}
 }

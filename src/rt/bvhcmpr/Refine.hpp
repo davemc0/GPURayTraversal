@@ -2,6 +2,7 @@
 #pragma once
 
 #include "bvh/BVH.hpp"
+#include "bvh/BVHNode.hpp"
 #include "base/Timer.hpp"
 
 #include <vector>

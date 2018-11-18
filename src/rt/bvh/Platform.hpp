@@ -34,6 +34,7 @@ namespace FW
 
 class LeafNode;
 class BVHNode;
+
 class Platform
 {
 public:

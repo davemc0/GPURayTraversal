@@ -29,7 +29,9 @@
 
 namespace FW
 {
-
+    // This is where the statics live.
+    ArrayAllocator<InnerNode>* InnerNode::s_AA = nullptr;
+    ArrayAllocator<LeafNode>*  LeafNode::s_AA  = nullptr;
 
 int BVHNode::getSubtreeSize(BVH_STAT stat) const
 {

@@ -25,6 +25,7 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "bvh/BVHNode.hpp"
 #include "cuda/CudaBVH.hpp"
 
 using namespace FW;

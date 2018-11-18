@@ -600,12 +600,19 @@ void FW::runInteractive(const Vec2i& frameSize, const String& stateFile)
 //------------------------------------------------------------------------
 
 extern float testThrust(size_t N);
+extern float BenchyMcBenchfaceS(size_t N);
+extern float BenchyMcBenchfaceG(size_t N);
+extern float BenchyBench2(size_t N);
 
-const size_t N = 1 << 27;
+const size_t N = 1 << 16;
 
 void FW::runTest()
 {
     ::printf("Running tests\n");
+
+    //BenchyBench2(N);
+    //BenchyMcBenchfaceG(N);
+    //BenchyMcBenchfaceS(N);
 
     Timer Tim;
     Tim.start();

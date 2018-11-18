@@ -253,7 +253,7 @@ void Buffer::setOwner(Module module, bool modify, bool async, CUstream cudaStrea
 
     // Not page-locked => not asynchronous.
 
-    if ((m_hints & Hint_PageLock) == 0)
+    if ((m_hints & (Hint_PageLock | Hint_Managed)) == 0)
         async = false;
 
     // Validate CPU.
@@ -576,11 +576,11 @@ void Buffer::validateCPU(bool async, CUstream cudaStream, S64 validSize)
 void Buffer::cpuAlloc(U8*& cpuPtr, U8*& cpuBase, S64 size, U32 hints, int align)
 {
     FW_ASSERT(align > 0);
-    if ((hints & Hint_PageLock) != 0)
+    if ((hints & (Hint_PageLock | Hint_Managed)) != 0)
     {
-        checkSize(size, 32, "cuMemAllocHost");
-        CudaModule::checkError("cuMemAllocHost", cuMemAllocHost((void**)&cpuBase,
-            max(1U, (U32)(size + align - 1))));
+        checkSize(size, 32, "cuMemAllocManaged");
+        CudaModule::checkError("cuMemAllocManaged", cuMemAllocManaged((CUdeviceptr*)&cpuBase,
+            max(1U, (U32)(size + align - 1)), ::CU_MEM_ATTACH_GLOBAL));
     }
     else
     {
@@ -599,7 +599,7 @@ void Buffer::cpuFree(U8*& cpuPtr, U8*& cpuBase, U32 hints)
     FW_ASSERT((cpuPtr == NULL) == (cpuBase == NULL));
     if (cpuPtr)
     {
-        if ((hints & Hint_PageLock) != 0)
+        if ((hints & (Hint_PageLock | Hint_Managed)) != 0)
             CudaModule::checkError("cuMemFreeHost", cuMemFreeHost(cpuBase));
         else
             delete[] cpuBase;
@@ -650,9 +650,9 @@ void Buffer::cudaAlloc(CUdeviceptr& cudaPtr, CUdeviceptr& cudaBase, bool& cudaGL
     if ((hints & Hint_CudaGL) == 0)
     {
         FW_ASSERT(align > 0);
-        checkSize(size, 32, "cuMemAlloc");
-        CudaModule::checkError("cuMemAlloc", cuMemAlloc(&cudaBase,
-            max(1U, (U32)(size + align - 1))));
+        checkSize(size, 32, "cuMemAllocManaged");
+        CudaModule::checkError("cuMemAllocManaged", cuMemAllocManaged(&cudaBase,
+            max(1U, (U32)(size + align - 1)), ::CU_MEM_ATTACH_GLOBAL));
         cudaPtr = cudaBase + align - 1;
         cudaPtr -= (U32)cudaPtr % (U32)align;
     }

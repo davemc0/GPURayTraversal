@@ -57,6 +57,8 @@ private:
     Vec3f           m_mx;
 };
 
+// FW_CUDA_FUNC    AABB            operator+   (const AABB& a, const AABB& b) { AABB u(a); u.grow(b); return u; }
+
 //------------------------------------------------------------------------
 
 struct Ray

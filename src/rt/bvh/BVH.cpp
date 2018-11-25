@@ -28,7 +28,8 @@
 #include "bvh/BVH.hpp"
 #include "bvh/BVHNode.hpp"
 #include "bvh/SplitBVHBuilder.hpp"
-#include "bvh/GPUSplitBVHBuilder.hpp"
+#include "bvh/BatchSplitBVHBuilder.hpp"
+#include "bvh/RandomBVHBuilder.hpp"
 #include "bvhcmpr/Refine.hpp"
 
 using namespace FW;
@@ -45,13 +46,13 @@ BVH::BVH(Scene* scene, const Platform& platform, const BuildParams& params)
     size_t maxLeafNodes = size_t(scene->getNumTriangles() * 1.5f);
     // Need to free the backing store sometime.
 
-    m_leafBuffer = new Buffer(nullptr, maxLeafNodes * sizeof(LeafNode), Buffer::Hint_Managed);
+    m_leafBuffer = new Buffer(nullptr, maxLeafNodes * sizeof(LeafNode), 0);
     LeafNode* lptr = (LeafNode*)m_leafBuffer->getMutableCudaPtr();
     m_leafNodeAA = new ArrayAllocator<LeafNode>();
     m_leafNodeAA->init(lptr, maxLeafNodes);
     LeafNode::s_AA = m_leafNodeAA;
 
-    m_innerBuffer = new Buffer(nullptr, maxLeafNodes * sizeof(InnerNode), Buffer::Hint_Managed);
+    m_innerBuffer = new Buffer(nullptr, maxLeafNodes * sizeof(InnerNode), 0);
     InnerNode* dptr = (InnerNode*)m_innerBuffer->getMutableCudaPtr();
     m_innerNodeAA = new ArrayAllocator<InnerNode>();
     m_innerNodeAA->init(dptr, maxLeafNodes);
@@ -64,8 +65,10 @@ BVH::BVH(Scene* scene, const Platform& platform, const BuildParams& params)
 
     Ref.getTimer().start();
 
-    m_root = SplitBVHBuilder(*this, params).run();
+    //m_root = RandomBVHBuilder(*this, params, false).run();
+    //m_root = SplitBVHBuilder(*this, params).run();
     //m_root = GPUSplitBVHBuilder(*this, params).run();
+    m_root = BatchSplitBVHBuilder(*this, params).run();
 
     float sah = 0.f;
     m_root->computeSubtreeValues(m_platform, m_root->getArea(), false, false);

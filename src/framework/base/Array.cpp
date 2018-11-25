@@ -27,4 +27,24 @@
 
 #include "base/Array.hpp"
 
+#include "gpu/CudaModule.hpp"
+
 //------------------------------------------------------------------------
+
+namespace FW
+{
+
+    void* managedAlloc(size_t bytes)
+    {
+        CUdeviceptr ptr;
+        CudaModule::checkError("cuMemAllocManaged(Array)", cuMemAllocManaged(&ptr, bytes, ::CU_MEM_ATTACH_GLOBAL));
+
+        return (void*)ptr;
+    }
+
+    void managedFree(void* ptr)
+    {
+        CudaModule::checkError("cuMemFree(Array)", cuMemFree((CUdeviceptr)ptr));
+    }
+
+};

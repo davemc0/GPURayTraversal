@@ -33,6 +33,14 @@ namespace FW
 {
     //------------------------------------------------------------------------
 
+    struct Reference
+    {
+        S32                 triIdx;
+        AABB                bounds;
+
+        // Reference(void) : triIdx(-1) {} I don't think this is necessary and it's not defined in device code.
+    };
+
     class GPUSplitBVHBuilder
     {
     private:
@@ -43,14 +51,8 @@ namespace FW
             NumSpatialBins = 128,
         };
 
-        struct Reference
-        {
-            S32                 triIdx;
-            AABB                bounds;
-
-            Reference(void) : triIdx(-1) {}
-        };
-
+    public:
+    private:
         struct NodeSpec
         {
             S32                 numRef;
@@ -92,7 +94,7 @@ namespace FW
 
         BVHNode*                run(void);
 
-    private:
+//     private: // These need to be public to be able to use lambdas in them. Lame.
         static bool             sortCompare(void* data, int idxA, int idxB);
         static void             sortSwap(void* data, int idxA, int idxB);
 
@@ -106,6 +108,8 @@ namespace FW
         void                    performSpatialSplit(NodeSpec& left, NodeSpec& right, const NodeSpec& spec, const SpatialSplit& split);
         void                    splitReference(Reference& left, Reference& right, const Reference& ref, int dim, F32 pos, const Vec3i* tris, const Vec3f* verts);
 
+        // Helpers
+        void sortHelper(size_t beg, size_t end, int dim);
         void Benchy(); // XXX
 
     private:
@@ -125,6 +129,11 @@ namespace FW
 
         Timer                   m_progressTimer;
         S32                     m_numDuplicates;
+
+        // Raw pointers for GPU arrays; initialized in run(); all allocated using cudaMallocManaged
+        const Vec3i*            m_ptris;
+        const Vec3f*            m_pverts;
+        Reference*              m_prefStack;
     };
 
     //------------------------------------------------------------------------

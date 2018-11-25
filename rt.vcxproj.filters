@@ -139,6 +139,9 @@
     <ClInclude Include="src\rt\bvh\GPUSplitBVHBuilder.hpp">
       <Filter>bvh</Filter>
     </ClInclude>
+    <ClInclude Include="src\rt\bvh\BatchSplitBVHBuilder.hpp">
+      <Filter>bvh</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CustomBuildStep Include="src\rt\cuda\RendererKernels.cu">
@@ -174,6 +177,9 @@
   <ItemGroup>
     <CudaCompile Include="src\rt\test\kernel.cu" />
     <CudaCompile Include="src\rt\bvh\GPUSplitBVHBuilder.cu">
+      <Filter>bvh</Filter>
+    </CudaCompile>
+    <CudaCompile Include="src\rt\bvh\BatchSplitBVHBuilder.cu">
       <Filter>bvh</Filter>
     </CudaCompile>
   </ItemGroup>

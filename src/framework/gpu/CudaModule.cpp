@@ -570,6 +570,11 @@ void CudaModule::printDeviceInfo(CUdevice device)
 #else
 #   define A40(ENUM, NAME) // TODO: Some of these may exist in earlier versions, too.
 #endif
+#if (CUDA_VERSION >= 6000)
+#   define A60(ENUM, NAME) A21(ENUM, NAME)
+#else
+#   define A60(ENUM, NAME)
+#endif
 
         A21(CLOCK_RATE,                         "Clock rate")
         A40(MEMORY_CLOCK_RATE,                  "Memory clock rate")
@@ -613,10 +618,14 @@ void CudaModule::printDeviceInfo(CUdevice device)
         A21(GPU_OVERLAP,                        "Concurrent memcopy supported")
         A40(ASYNC_ENGINE_COUNT,                 "Max concurrent memcopies")
 //      A40(KERNEL_EXEC_TIMEOUT,                "Kernel launch time limited")
-//      A40(INTEGRATED,                         "Integrated with host memory")
+        A40(INTEGRATED,                         "Integrated with host memory")
         A40(UNIFIED_ADDRESSING,                 "Unified addressing supported")
         A40(CAN_MAP_HOST_MEMORY,                "Can map host memory")
-        A40(ECC_ENABLED,                        "ECC enabled")
+        A60(PAGEABLE_MEMORY_ACCESS,             "Coh. access pageable memory")
+        A60(CONCURRENT_MANAGED_ACCESS,          "Coh. access mng memory w/ CPU")
+        A60(PAGEABLE_MEMORY_ACCESS_USES_HOST_PAGE_TABLES, "Pageable mem via host PTE")
+        A60(DIRECT_MANAGED_MEM_ACCESS_FROM_HOST, "Access device mng mem wo migr")
+        //      A40(ECC_ENABLED,                        "ECC enabled")
 
 //      A40(TCC_DRIVER,                         "Driver is TCC")
 //      A40(COMPUTE_MODE,                       "Compute exclusivity mode")

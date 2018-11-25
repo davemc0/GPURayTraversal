@@ -25,11 +25,29 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#if 0
+
 #define FW_ENABLE_ASSERT
+
+//#define THRUST_DEBUG_SYNC
+//#define DEBUG
 
 #include "bvh/BVHNode.hpp"
 #include "bvh/GPUSplitBVHBuilder.hpp"
 #include "base/Sort.hpp"
+
+#include <thrust/swap.h>
+
+#include <thrust/sort.h>
+#include <thrust/functional.h>
+#include <thrust/execution_policy.h>
+#include <thrust/host_vector.h>
+#include <thrust/transform.h>
+#include <thrust/reduce.h>
+#include <thrust/transform_reduce.h>
+#include <thrust/iterator/constant_iterator.h>
+
+#define HD __host__ __device__
 
 //------------------------------------------------------------------------
 FW::GPUSplitBVHBuilder::GPUSplitBVHBuilder(BVH& bvh, const BVH::BuildParams& params)
@@ -56,13 +74,14 @@ FW::BVHNode* FW::GPUSplitBVHBuilder::run(void)
 
     // Initialize reference stack and determine root bounds.
 
-    const Vec3i* tris = (const Vec3i*)m_bvh.getScene()->getTriVtxIndexBuffer().getPtr();
-    const Vec3f* verts = (const Vec3f*)m_bvh.getScene()->getVtxPosBuffer().getPtr();
-
     NodeSpec rootSpec;
     rootSpec.numRef = m_bvh.getScene()->getNumTriangles();
+    m_refStack.setManaged(true);
     m_refStack.resize(rootSpec.numRef);
 
+#if 0
+    const Vec3i* tris = (const Vec3i*)m_bvh.getScene()->getTriVtxIndexBuffer().getPtr();
+    const Vec3f* verts = (const Vec3f*)m_bvh.getScene()->getVtxPosBuffer().getPtr();
     for (int i = 0; i < rootSpec.numRef; i++)
     {
         m_refStack[i].triIdx = i;
@@ -70,6 +89,26 @@ FW::BVHNode* FW::GPUSplitBVHBuilder::run(void)
             m_refStack[i].bounds.grow(verts[tris[i][j]]);
         rootSpec.bounds.grow(m_refStack[i].bounds);
     }
+#else
+    // Do this here in run() to set up the pointers for the whole algorithm
+    m_ptris = (const Vec3i*)m_bvh.getScene()->getTriVtxIndexBuffer().getCudaPtr();
+    m_pverts = (const Vec3f*)m_bvh.getScene()->getVtxPosBuffer().getCudaPtr();
+    m_prefStack = m_refStack.getPtr();
+
+    // Do this in every function that uses a device lambda:
+    const Vec3i* tris   = m_ptris;
+    const Vec3f* verts  = m_pverts;
+    Reference* refStack = m_prefStack;
+
+    rootSpec.bounds = thrust::transform_reduce(thrust::device, thrust::make_counting_iterator(0), thrust::make_counting_iterator(rootSpec.numRef), [=] HD (S32 i) {
+        refStack[i].triIdx = i;
+        refStack[i].bounds = AABB();
+        for (int j = 0; j < 3; j++)
+            refStack[i].bounds.grow(verts[tris[i][j]]);
+        return refStack[i].bounds;
+    }, AABB(), [] HD (AABB a, AABB b) { return a + b; });
+    cudaDeviceSynchronize();
+#endif
 
     // Initialize rest of the members.
 
@@ -193,6 +232,28 @@ FW::BVHNode* FW::GPUSplitBVHBuilder::createLeaf(const NodeSpec& spec)
 
 //------------------------------------------------------------------------
 
+namespace FW {
+    void __host__ __device__ swap(FW::Reference& a, FW::Reference& b)
+    {
+        //printf("swap 0x%016llx 0x%016llx\n", (U64)&a, (U64)&b);
+        thrust::swap(a, b);
+    }
+};
+
+void  FW::GPUSplitBVHBuilder::sortHelper(size_t beg, size_t end, int mdim)
+{
+    Reference* refStack = m_prefStack;
+    int dim = mdim;
+
+    //printf("%lld %lld\n", beg, end);
+    thrust::sort(thrust::device, refStack + beg, refStack + end, [dim] __device__ (const Reference ra, const Reference rb) {
+        F32 ca = ra.bounds.min()[dim] + ra.bounds.max()[dim];
+        F32 cb = rb.bounds.min()[dim] + rb.bounds.max()[dim];
+        return (ca < cb || (ca == cb && ra.triIdx < rb.triIdx));
+    });
+
+}
+
 FW::GPUSplitBVHBuilder::ObjectSplit FW::GPUSplitBVHBuilder::findObjectSplit(const NodeSpec& spec, F32 nodeSAH)
 {
     ObjectSplit split;
@@ -203,9 +264,16 @@ FW::GPUSplitBVHBuilder::ObjectSplit FW::GPUSplitBVHBuilder::findObjectSplit(cons
 
     for (m_sortDim = 0; m_sortDim < 3; m_sortDim++)
     {
-        sort(this, m_refStack.getSize() - spec.numRef, m_refStack.getSize(), sortCompare, sortSwap);
-
+        if (spec.numRef < 100000) {
+            sort(this, m_refStack.getSize() - spec.numRef, m_refStack.getSize(), sortCompare, sortSwap);
+        }
+        else {
+            // PAR: Sort by centroid
+            sortHelper(m_refStack.getSize() - spec.numRef, m_refStack.getSize(), m_sortDim);
+            cudaDeviceSynchronize();
+        }
         // Sweep right to left and determine bounds.
+        // PAR: Is an inclusive scan
 
         AABB rightBounds;
         for (int i = spec.numRef - 1; i > 0; i--)
@@ -215,6 +283,7 @@ FW::GPUSplitBVHBuilder::ObjectSplit FW::GPUSplitBVHBuilder::findObjectSplit(cons
         }
 
         // Sweep left to right and select lowest SAH.
+        // PAR: Is an inclusive scan
 
         AABB leftBounds;
         for (int i = 1; i < spec.numRef; i++)
@@ -240,8 +309,14 @@ FW::GPUSplitBVHBuilder::ObjectSplit FW::GPUSplitBVHBuilder::findObjectSplit(cons
 
 void FW::GPUSplitBVHBuilder::performObjectSplit(NodeSpec& left, NodeSpec& right, const NodeSpec& spec, const ObjectSplit& split)
 {
-    m_sortDim = split.sortDim;
-    sort(this, m_refStack.getSize() - spec.numRef, m_refStack.getSize(), sortCompare, sortSwap);
+    if (spec.numRef < 100000) {
+        m_sortDim = split.sortDim;
+        sort(this, m_refStack.getSize() - spec.numRef, m_refStack.getSize(), sortCompare, sortSwap);
+    }
+    else {
+        sortHelper(m_refStack.getSize() - spec.numRef, m_refStack.getSize(), split.sortDim);
+        cudaDeviceSynchronize();
+    }
 
     left.numRef = split.numLeft;
     left.bounds = split.leftBounds;
@@ -517,4 +592,6 @@ void FW::GPUSplitBVHBuilder::Benchy()
     }
     printf("G i=%lld s=%f t=%f\n", i, final.area(), tim.getElapsed());
 }
+#endif
+
 #endif

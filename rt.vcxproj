@@ -77,6 +77,7 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpplatest</LanguageStandard>
+      <ShowIncludes>false</ShowIncludes>
     </ClCompile>
     <Link>
       <AdditionalDependencies>cudart_static.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -96,7 +97,10 @@
       <CodeGeneration>compute_75,sm_75</CodeGeneration>
       <FastMath>true</FastMath>
       <AdditionalOptions>--expt-extended-lambda %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalCompilerOptions>/Gm-</AdditionalCompilerOptions>
+      <AdditionalCompilerOptions>/fp:fast /Gm-</AdditionalCompilerOptions>
+      <KeepDir>$(IntDir)CUDA</KeepDir>
+      <Warning>W2</Warning>
+      <Keep>true</Keep>
     </CudaCompile>
     <CudaLink>
       <PerformDeviceLink>false</PerformDeviceLink>
@@ -131,6 +135,7 @@
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <SuppressStartupBanner>true</SuppressStartupBanner>
+      <ShowIncludes>false</ShowIncludes>
     </ClCompile>
     <Link>
       <AdditionalDependencies>cudart_static.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -153,8 +158,10 @@
       <FastMath>true</FastMath>
       <Optimization>O3</Optimization>
       <AdditionalOptions>--expt-extended-lambda %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalCompilerOptions>/Oi /Ot /fp:fast /Zc:inline /Gm- /Gy /Ob2 /GS- /arch:AVX2 /Zc:forScope /Zc:inline</AdditionalCompilerOptions>
+      <AdditionalCompilerOptions>/fp:fast /Gm- /Oi /Ot /Gy /Ob2 /GS- /arch:AVX2 /Zc:forScope</AdditionalCompilerOptions>
       <Keep>true</Keep>
+      <KeepDir>$(IntDir)CUDA</KeepDir>
+      <Warning>W2</Warning>
     </CudaCompile>
     <CudaLink>
       <PerformDeviceLink>false</PerformDeviceLink>
@@ -188,6 +195,7 @@
     <ClInclude Include="src\rt\bvhcmpr\Refine.hpp" />
     <ClInclude Include="src\rt\bvhcmpr\SGPUBVHCompressor.hpp" />
     <ClInclude Include="src\rt\bvhcmpr\TRefine.hpp" />
+    <ClInclude Include="src\rt\bvh\BatchSplitBVHBuilder.hpp" />
     <ClInclude Include="src\rt\bvh\BVH.hpp" />
     <ClInclude Include="src\rt\bvh\BVHNode.hpp" />
     <ClInclude Include="src\rt\bvh\GPUSplitBVHBuilder.hpp" />
@@ -213,6 +221,7 @@
     <None Include="src\rt\kernels\stats_kepler_dynamic_fetch.cu">
       <FileType>Document</FileType>
     </None>
+    <CudaCompile Include="src\rt\bvh\BatchSplitBVHBuilder.cu" />
     <CudaCompile Include="src\rt\bvh\GPUSplitBVHBuilder.cu">
     </CudaCompile>
     <CudaCompile Include="src\rt\test\kernel.cu">

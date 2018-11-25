@@ -275,10 +275,13 @@ bool CudaKernel::prepareLaunch(void)
 
 void CudaKernel::performLaunch(void)
 {
-    if (m_async && isAvailable_cuLaunchGridAsync())
+    if (isAvailable_cuLaunchGridAsync())
         CudaModule::checkError("cuLaunchGridAsync", cuLaunchGridAsync(m_function, m_gridSize.x, m_gridSize.y, m_stream));
+
+    if (!m_async)
+        cudaDeviceSynchronize();
     else
-        CudaModule::checkError("cuLaunchGrid", cuLaunchGrid(m_function, m_gridSize.x, m_gridSize.y));
+        printf("Async!\n");
 }
 
 //------------------------------------------------------------------------

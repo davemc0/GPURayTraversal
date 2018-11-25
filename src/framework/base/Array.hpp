@@ -68,10 +68,10 @@ public:
     inline const T&         get         (S idx) const;                              // Returns a reference to the specified element.
     inline T&               get         (S idx);
     inline T                set         (S idx, const T& item);                     // Overwrites the specified element and returns the old value.
-    inline const T&     getFirst    (void) const;                       // Returns a reference to the first element.
-    inline T&           getFirst    (void);
-    inline const T&     getLast     (void) const;                       // Returns a reference to the last element.
-    inline T&           getLast     (void);
+    inline const T&         getFirst    (void) const;                               // Returns a reference to the first element.
+    inline T&               getFirst    (void);                                  
+    inline const T&         getLast     (void) const;                               // Returns a reference to the last element.
+    inline T&               getLast     (void);
     inline void             getRange    (S start, S end, T* ptr) const;             // Copies a range of elements (start..end-1) into the given memory location.
     inline ArrayBase<T,S>   getRange    (S start, S end) const;                     // Copies a range of elements (start..end-1) into a newly allocated ArrayBase.
     inline void             setRange    (S start, S end, const T* ptr);             // Overwrites a range of elements (start..end-1) from the given memory location.
@@ -134,6 +134,8 @@ public:
     static inline void  copy        (T* dst, const T* src, S size);   // Analogous to memcpy().
     static inline void  copyOverlap (T* dst, const T* src, S size);   // Analogous to memmove().
 
+    inline void setManaged(bool mg) { m_managedAllocator = mg; }
+
     // Internals.
 
 private:
@@ -145,6 +147,7 @@ private:
     T*                  m_ptr;
     S                   m_size;
     S                   m_alloc;
+    bool                m_managedAllocator;
 };
 
 //------------------------------------------------------------------------
@@ -182,7 +185,10 @@ template <class T, typename S> ArrayBase<T,S>::ArrayBase(const ArrayBase<T,S>& o
 
 template <class T, typename S> ArrayBase<T,S>::~ArrayBase(void)
 {
-    delete[] m_ptr;
+    if (m_managedAllocator)
+        managedFree(m_ptr);
+    else
+        delete[] m_ptr;
 }
 
 //------------------------------------------------------------------------
@@ -664,9 +670,13 @@ template <class T, typename S> void ArrayBase<T,S>::init(void)
     m_ptr = NULL;
     m_size = 0;
     m_alloc = 0;
+    m_managedAllocator = false;
 }
 
 //------------------------------------------------------------------------
+
+void* managedAlloc(size_t bytes);
+void managedFree(void* ptr);
 
 template <class T, typename S> void ArrayBase<T,S>::realloc(S size)
 {
@@ -675,11 +685,18 @@ template <class T, typename S> void ArrayBase<T,S>::realloc(S size)
     T* newPtr = NULL;
     if (size)
     {
-        newPtr = new T[size];
+        if (m_managedAllocator) {
+            newPtr = (T*)managedAlloc(size * sizeof(T));
+        }
+        else
+            newPtr = new T[size];
         copy(newPtr, m_ptr, min(size, m_size));
     }
 
-    delete[] m_ptr;
+    if (m_managedAllocator)
+        managedFree(m_ptr);
+    else
+        delete[] m_ptr;
     m_ptr = newPtr;
     m_alloc = size;
 }

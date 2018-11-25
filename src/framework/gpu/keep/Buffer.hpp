@@ -57,10 +57,10 @@ public:
 
 public:
     explicit        Buffer              (U32 hints = Hint_None)                 { init(0, hints, 1); }
-    explicit        Buffer              (const void* ptr, S64 size, U32 hints = Hint_None, int align = 1) { init(size, hints, align); if (ptr) set(ptr); }
-    template <class T> explicit Buffer  (const Array<T>& data, U32 hints = Hint_None, int align = 1) { init(data.getNumBytes(), hints, align); set(data.getPtr()); }
-    template <class T> explicit Buffer  (const Array<T>& data, int start, int end, U32 hints = Hint_None, int align = 1) { init((end - start) * sizeof(T), hints, align); set(data.getPtr(start)); }
-                    Buffer              (Buffer& other)                         { init(other.getSize(), other.getHints(), other.getAlign()); setRange(0, other, 0, other.getSize()); }
+    explicit        Buffer              (const void* ptr, S64 size, U32 hints = Hint_None, int align = 1) { init(size, hints, align); if (ptr) set(ptr); else printf("Buffer copy ptr\n"); }
+    template <class T> explicit Buffer  (const Array<T>& data, U32 hints = Hint_None, int align = 1) { printf("Buffer copy array1\n"); init(data.getNumBytes(), hints, align); set(data.getPtr()); }
+    template <class T> explicit Buffer  (const Array<T>& data, int start, int end, U32 hints = Hint_None, int align = 1) { printf("Buffer copy array2\n"); init((end - start) * sizeof(T), hints, align); set(data.getPtr(start)); }
+                    Buffer              (Buffer& other)                         { printf("Buffer copy\n"); init(other.getSize(), other.getHints(), other.getAlign()); setRange(0, other, 0, other.getSize()); }
     virtual         ~Buffer             (void)                                  { deinit(); }
 
     void            wrapCPU             (void* cpuPtr, S64 size);
@@ -139,7 +139,7 @@ private:
     static void     glAlloc             (GLuint& glBuffer, S64 size, const void* data);
     static void     glFree              (GLuint& glBuffer, bool& cudaGLReg);
     static void     cudaAlloc           (CUdeviceptr& cudaPtr, CUdeviceptr& cudaBase, bool& cudaGLReg, S64 size, GLuint glBuffer, U32& hints, int align);
-    static void     cudaAllocManaged    (CUdeviceptr& cudaPtr, CUdeviceptr& cudaBase, S64 size, int align);
+    static void     cudaAllocManaged    (CUdeviceptr& cudaPtr, CUdeviceptr& cudaBase, S64 size, U32 hints, int align);
     static void     cudaFree            (CUdeviceptr& cudaPtr, CUdeviceptr& cudaBase, GLuint glBuffer, U32 hints);
 
     static void     checkSize           (S64 size, int bits, const String& funcName);

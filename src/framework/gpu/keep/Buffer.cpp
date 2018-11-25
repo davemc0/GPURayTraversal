@@ -37,7 +37,7 @@ using namespace FW;
 
 #define FW_IO_BUFFER_SIZE 65536
 
-static bool manageAllHostMemory = true;
+static bool manageAllHostMemory = false; //  true;
 
 //------------------------------------------------------------------------
 
@@ -267,6 +267,13 @@ void Buffer::setOwner(Module module, bool modify, bool async, CUstream cudaStrea
             cpuAlloc(m_cpuPtr, m_cpuBase, m_size, m_hints, m_align);
             m_exists |= CPU;
             m_dirty |= CPU;
+
+            if ((m_hints & Hint_Managed) != 0) {
+                m_exists |= Cuda;
+                m_dirty  |= Cuda;
+                m_cudaBase = (CUdeviceptr)m_cpuBase;
+                m_cudaPtr = (CUdeviceptr)m_cpuPtr;
+            }
         }
         validateCPU(async, cudaStream, validSize);
     }
@@ -313,10 +320,19 @@ void Buffer::setOwner(Module module, bool modify, bool async, CUstream cudaStrea
             m_dirty |= Cuda;
             if ((m_hints & Hint_CudaGL) != 0 && (m_dirty & GL) == 0)
                 m_dirty &= ~Cuda;
+            if ((m_hints & Hint_Managed) != 0) {
+                m_exists |= CPU;
+                m_dirty  |= CPU;
+                if ((m_hints & Hint_CudaGL) != 0 && (m_dirty & GL) == 0)
+                    m_dirty &= ~CPU;
+                m_cpuBase = (FW::U8*)m_cudaBase;
+                m_cpuPtr  = (FW::U8*)m_cudaPtr;
+            }
         }
 
         if ((m_dirty & Cuda) != 0)
         {
+            // XXX Need to clean this up for managed.
             validateCPU(false, NULL, validSize);
             if ((m_exists & CPU) != 0 && validSize)
                 memcpyHtoD(m_cudaPtr, m_cpuPtr, (U32)validSize, async, cudaStream);
@@ -495,6 +511,12 @@ void Buffer::realloc(S64 size, U32 hints, int align)
         m_exists = Cuda;
         m_cudaPtr = cudaPtr;
         m_cudaBase = cudaBase;
+        if ((m_hints & Hint_Managed) != 0) {
+            m_exists |= CPU;
+            m_cpuBase = (FW::U8*)m_cudaBase;
+            m_cpuPtr = (FW::U8*)m_cudaPtr;
+        }
+
         return;
     }
 
@@ -509,6 +531,11 @@ void Buffer::realloc(S64 size, U32 hints, int align)
     m_exists = CPU;
     m_cpuPtr = cpuPtr;
     m_cpuBase = cpuBase;
+    if ((m_hints & Hint_Managed) != 0) {
+        m_exists |= Cuda;
+        m_cudaBase = (CUdeviceptr)m_cpuBase;
+        m_cudaPtr = (CUdeviceptr)m_cpuPtr;
+    }
 }
 
 //------------------------------------------------------------------------
@@ -517,18 +544,20 @@ void Buffer::validateCPU(bool async, CUstream cudaStream, S64 validSize)
 {
     FW_ASSERT(validSize >= 0);
 
+    Module Me = (Module)(CPU | (((m_hints & Hint_Managed) != 0) ? Cuda : Module_None));
+
     // Already valid => done.
 
-    if ((m_exists & CPU) != 0 && (m_dirty & CPU) == 0)
+    if ((m_exists & Me) != 0 && (m_dirty & Me) == 0)
         return;
-    m_dirty &= ~CPU;
+    m_dirty &= ~Me;
 
     // Find source for the data.
 
     Module source = Module_None;
     for (int i = 1; i < (int)Module_All; i <<= 1)
     {
-        if (i != CPU && (m_exists & i) != 0 && (m_dirty & i) == 0)
+        if ((Me & i) == 0 && (m_exists & i) != 0 && (m_dirty & i) == 0)
         {
             source = (Module)i;
             break;
@@ -542,10 +571,17 @@ void Buffer::validateCPU(bool async, CUstream cudaStream, S64 validSize)
 
     // No buffer => allocate one.
 
-    if ((m_exists & CPU) == 0)
+    if ((m_exists & Me) == 0)
     {
         cpuAlloc(m_cpuPtr, m_cpuBase, m_size, m_hints, m_align);
         m_exists |= CPU;
+
+        if ((m_hints & Hint_Managed) != 0) {
+            m_exists |= Cuda;
+            m_dirty &= ~Cuda;
+            m_cudaBase = (CUdeviceptr)m_cpuBase;
+            m_cudaPtr  = (CUdeviceptr)m_cpuPtr;
+        }
     }
 
     // No valid data => no need to copy.
@@ -580,9 +616,9 @@ void Buffer::cpuAlloc(U8*& cpuPtr, U8*& cpuBase, S64 size, U32& hints, int align
     FW_ASSERT(align > 0);
     //printf("cpuAlloc(%lld) hints=%d\n", size, hints);
 
-    if (manageAllHostMemory || (hints & Hint_PageLock) != 0)
+    if (manageAllHostMemory || (hints & (Hint_PageLock | Hint_Managed)) != 0)
     {
-        cudaAllocManaged((CUdeviceptr&)cpuPtr, (CUdeviceptr&)cpuBase, size, align);
+        cudaAllocManaged((CUdeviceptr&)cpuPtr, (CUdeviceptr&)cpuBase, size, 0, align); // Suppress hints on this
         hints = hints | Hint_Managed; // Tag the buffer as managed
     }
     else
@@ -601,7 +637,7 @@ void Buffer::cpuFree(U8*& cpuPtr, U8*& cpuBase, U32 hints)
     FW_ASSERT((cpuPtr == NULL) == (cpuBase == NULL));
     if (cpuPtr)
     {
-        if (manageAllHostMemory || (hints & Hint_PageLock) != 0)
+        if (manageAllHostMemory || (hints & (Hint_PageLock | Hint_Managed)) != 0)
         {
             //printf("cpuFree hints=%d\n", hints);
             cudaFree((CUdeviceptr&)cpuPtr, (CUdeviceptr&)cpuBase, 0, 0); // Suppress hints on this
@@ -658,7 +694,7 @@ void Buffer::cudaAlloc(CUdeviceptr& cudaPtr, CUdeviceptr& cudaBase, bool& cudaGL
     CudaModule::staticInit();
     if ((hints & Hint_CudaGL) == 0)
     {
-        cudaAllocManaged(cudaPtr, cudaBase, size, align);
+        cudaAllocManaged(cudaPtr, cudaBase, size, hints, align);
         hints = hints | Hint_Managed; // Tag the buffer as managed
     }
     else
@@ -677,9 +713,10 @@ void Buffer::cudaAlloc(CUdeviceptr& cudaPtr, CUdeviceptr& cudaBase, bool& cudaGL
     }
 }
 
-void Buffer::cudaAllocManaged(CUdeviceptr& cudaPtr, CUdeviceptr& cudaBase, S64 size, int align)
+void Buffer::cudaAllocManaged(CUdeviceptr& cudaPtr, CUdeviceptr& cudaBase, S64 size, U32 hints, int align)
 {
     CudaModule::staticInit();
+    FW_ASSERT((hints & Hint_CudaGL) == 0);
     
     FW_ASSERT(align > 0);
     checkSize(size, 32, "cuMemAllocManaged");

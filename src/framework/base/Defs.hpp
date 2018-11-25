@@ -52,9 +52,9 @@ using std::swap;
 #endif
 
 #ifdef __CUDA_ARCH__
-#   define FW_CUDA_DEV 1
+#   define FW_CUDA_DEVICE 1
 #else
-#   define FW_CUDA_DEV 0
+#   define FW_CUDA_DEVICE 0
 #endif
 
 #ifdef __CUDACC__
@@ -66,10 +66,14 @@ using std::swap;
 #   define FW_CUDA_CONST    static const
 #endif
 
-#if (FW_DEBUG || defined(FW_ENABLE_ASSERT)) && !FW_CUDA_DEV
+#if (FW_DEBUG || defined(FW_ENABLE_ASSERT)) && !FW_CUDA_DEVICE
 #   define FW_ASSERT(X) ((X) ? ((void)0) : FW::fail("Assertion failed!\n%s:%d\n%s", __FILE__, __LINE__, #X))
 #else
 #   define FW_ASSERT(X) ((void)0)
+#endif
+
+#if !FW_CUDA_DEVICE
+#   define FW_RASSERT(X) ((X) ? ((void)0) : FW::fail("Rel Assertion failed!\n%s:%d\n%s", __FILE__, __LINE__, #X))
 #endif
 
 #define FW_UNREF(X)         ((void)(X))
@@ -196,7 +200,7 @@ using std::swap;
 FW_SPECIALIZE_MINMAX(template <class T>, T&, (a < b) ? a : b, (a > b) ? a : b)
 FW_SPECIALIZE_MINMAX(template <class T>, const T&, (a < b) ? a : b, (a > b) ? a : b)
 
-#if FW_CUDA_DEV
+#if FW_CUDA_DEVICE
 //These should be just for device code.
 FW_SPECIALIZE_MINMAX(, U32, ::min(a, b), ::max(a, b))
 FW_SPECIALIZE_MINMAX(, S32, ::min(a, b), ::max(a, b))
@@ -209,7 +213,7 @@ FW_SPECIALIZE_MINMAX(, F64, ::fmin(a, b), ::fmax(a, b))
 //------------------------------------------------------------------------
 // CUDA utilities.
 
-#if FW_CUDA_DEV
+#if FW_CUDA_DEVICE
 #   define globalThreadIdx (threadIdx.x + blockDim.x * (threadIdx.y + blockDim.y * (blockIdx.x + gridDim.x * blockIdx.y)))
 #endif
 

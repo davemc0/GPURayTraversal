@@ -131,6 +131,7 @@ BVHNode* SplitBVHBuilder::buildNode(NodeSpec spec, int level, F32 progressStart,
     // Remove degenerates.
     // XXX I think this is only necessary at the root. Below that the splitter should be able to not make degenerates.
     {
+        printf("spec.numRef=%d\n", spec.numRef);
         int firstRef = m_refStack.getSize() - spec.numRef;
         for (int i = m_refStack.getSize() - 1; i >= firstRef; i--)
         {
@@ -139,6 +140,7 @@ BVHNode* SplitBVHBuilder::buildNode(NodeSpec spec, int level, F32 progressStart,
                 m_refStack.removeSwap(i);
         }
         spec.numRef = m_refStack.getSize() - firstRef;
+        printf("spec.numRef=%d\n", spec.numRef);
     }
 
     // Small enough or too deep => create leaf.

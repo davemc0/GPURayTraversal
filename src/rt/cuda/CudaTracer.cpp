@@ -73,6 +73,7 @@ void CudaTracer::setKernel(const String& kernelName)
 
     module->getKernel("queryConfig").launch(1, 1);
     m_kernelConfig = *(const KernelConfig*)module->getGlobal("g_config").getPtr();
+    FW_RASSERT(m_kernelConfig.bvhLayout != BVHLayout_Max);
 }
 
 //------------------------------------------------------------------------

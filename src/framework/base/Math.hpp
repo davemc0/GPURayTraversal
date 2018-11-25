@@ -62,7 +62,7 @@ FW_CUDA_FUNC F64    ceil            (F64 a)         { return ::ceil(a); }
 FW_CUDA_FUNC U64    doubleToBits    (F64 a)         { return *(U64*)&a; }
 FW_CUDA_FUNC F64    bitsToDouble    (U64 a)         { return *(F64*)&a; }
 
-#if FW_CUDA_DEV
+#if FW_CUDA_DEVICE
 FW_CUDA_FUNC F32    pow             (F32 a, F32 b)  { return ::__powf(a, b); }
 FW_CUDA_FUNC F32    exp             (F32 a)         { return ::__expf(a); }
 FW_CUDA_FUNC F32    exp2            (F32 a)         { return ::exp2f(a); }
@@ -132,7 +132,7 @@ public:
     FW_CUDA_FUNC    void            set         (const T* ptr)              { FW_ASSERT(ptr); T* tp = getPtr(); for (int i = 0; i < L; i++) tp[i] = ptr[i]; }
     FW_CUDA_FUNC    void            setZero     (void)                      { set((T)0); }
 
-    FW_CUDA_FUNC    void            print       (void) const                { const T* tp = getPtr(); for (int i = 0; i < L; i++) printf("%g\n", (F64)tp[i]); }
+    FW_CUDA_FUNC    void            print       (void) const                { const T* tp = getPtr(); printf("["); for (int i = 0; i < L; i++) printf("%g,", (F64)tp[i]); printf("]\n");}
 
     FW_CUDA_FUNC    bool            isZero      (void) const                { const T* tp = getPtr(); for (int i = 0; i < L; i++) if (tp[i] != (T)0) return false; return true; }
     FW_CUDA_FUNC    T               lenSqr      (void) const                { const T* tp = getPtr(); T r = (T)0; for (int i = 0; i < L; i++) r += sqr(tp[i]); return r; }

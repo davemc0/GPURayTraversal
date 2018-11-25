@@ -81,6 +81,7 @@ public:
         bool        enablePrints;
         F32         splitAlpha;     // spatial split area threshold
         bool        doMulticore;
+        F32         maxDuplication; // Percent increase in references vs. num tris due to splitting
 
 
         BuildParams(void)
@@ -89,6 +90,7 @@ public:
             enablePrints    = true;
             splitAlpha      = 1.0e-5f;
             doMulticore     = true;
+            maxDuplication  = 1.5f; // Can make 50% extra references
         }
 
         U32 computeHash(void) const

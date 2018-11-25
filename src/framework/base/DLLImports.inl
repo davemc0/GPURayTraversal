@@ -306,6 +306,7 @@ FW_DLL_IMPORT_CUDA( CUresult,   CUDAAPI,    cuFuncSetSharedMemConfig,           
 
 #if (CUDA_VERSION >= 7000)
 FW_DLL_IMPORT_CUDA( CUresult,   CUDAAPI,    cuMemAllocManaged,                      (CUdeviceptr *dptr, size_t bytesize, unsigned int flags), (dptr, bytesize, flags))
+FW_DLL_IMPORT_CUDA( CUresult,   CUDAAPI,    cuMemPrefetchAsync,                     (CUdeviceptr devPtr, size_t count, CUdevice dstDevice, CUstream hStream), (devPtr, count, dstDevice, hStream))
 #endif
 
 //------------------------------------------------------------------------

@@ -1,9 +1,81 @@
-#if 1
+#if 0
 
 float testThrust(size_t N)
 {
     return float(N);
 }
+
+#endif
+
+#if 1
+
+#define FW_ENABLE_ASSERT
+
+#define THRUST_DEBUG_SYNC
+#define DEBUG
+
+#include "bvh/BVHNode.hpp"
+#include "bvh/BatchSplitBVHBuilder.hpp"
+#include "base/Array.hpp"
+#include "base/Timer.hpp"
+
+#include <thrust/execution_policy.h>
+#include <thrust/host_vector.h>
+#include <thrust/iterator/constant_iterator.h>
+#include <thrust/iterator/zip_iterator.h>
+
+#include <thrust/scan.h>
+#include <thrust/partition.h>
+#include <thrust/sort.h>
+#include <thrust/transform.h>
+#include <thrust/reduce.h>
+#include <thrust/transform_reduce.h>
+
+#define BHD __host__ __device__
+//#define BHD __device__
+
+struct AABB
+{
+    float v[6];
+
+    __host__ __device__ AABB() { v[0] = 5.5f; }
+
+    bool __host__ __device__ valid() const {
+        return v[0] < v[1];
+    }
+};
+
+float testThrust(size_t N)
+{
+    int* refTriIdx;
+    AABB* refBounds;
+    uint64_t* keys;
+
+    typedef thrust::tuple<int, AABB, uint64_t>    TBKTuple;
+    typedef thrust::tuple<int*, AABB*, uint64_t*> TBKItTuple;
+    typedef thrust::zip_iterator<TBKItTuple> TBKZipIt;
+    TBKZipIt refsTBK(thrust::make_tuple(refTriIdx, refBounds, keys));
+    TBKZipIt refsTBKend(thrust::make_tuple(refTriIdx + N, refBounds + N, keys + N));
+
+    cudaDeviceSynchronize(); // XXX
+    auto mid = thrust::stable_partition(thrust::device, refsTBK, refsTBKend, [] BHD(const TBKTuple r) {
+        return thrust::get<1>(r).valid();
+    });
+
+    return 0;
+}
+
+#if 0
+int main()
+{
+    size_t N = 1024;
+
+    testThrust(N);
+
+    return 0;
+}
+
+#endif
 
 #endif
 

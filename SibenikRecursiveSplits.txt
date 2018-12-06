@@ -1,0 +1,319 @@
+
+
+Number of calls to splitReference per reference per dimension, with NumSpatialBins=32
+San Miguel:
+References in segment:  splitReferences:
+> 10000 0.163
+> 1000 0.31
+< 1000 4.9
+100-500 3.96
+< 100 10.2
+10-50 9.6
+< 10 21
+
+Handling splits on GPU:
+
+// Good for small N
+For each split plane in parallel     // a thread per plane across all segments and dimensions
+  For each reference
+    Do split, accumulate left and right
+  Compute cost
+
+// 
+For each reference in parallel
+  For each split plane
+    If reference spans plane
+      Do split
+    Accumulate left and right into bins (atomically)
+
+// So crazy it just might work
+Transform reduce by key for each reference
+  For each split plane
+    If reference spans plane
+      Do split
+	Store left and right into local bin array
+    Return entire bin array
+
+// Good for large N
+For each split plane index serially
+  Stable partition ALL references into those to left of their segment's plane, those that cross it, those to right of it
+  Reduce by key those to left and those to right
+  Transform reduce by key each reference that crosses its segment's plane in parallel
+  Transform is Do split
+  Merge the whole and split reductions
+
+// Good for medium N; very large data expansion for small N
+Transform inclusive scan for each reference
+  Compute set of bins spanned by reference
+  Compute indices to reference's span of split requests
+For each reference in parallel
+  Fill in span of split requests
+Sort split requests by bin
+For each bin in parallel
+  For each split request in bin
+  Do split
+  Accumulate this bin
+
+
+
+
+
+
+
+
+SBVH alpha=1e-05 minLeafSize=1 maxLeafSize=8 NumSpatialBins=1
+SplitBVHBuilder: progress 100%, duplicates 0%
+BVH: Scene bounds: (-27.7,-8.5,0.0) - (12.5,8.5,30.6) sah=81.950058 tt=0.453808 t=0.453808
+T
+SBVH alpha=1e-05 minLeafSize=1 maxLeafSize=8 NumSpatialBins=2
+SplitBVHBuilder: progress 100%, duplicates 11%
+BVH: Scene bounds: (-27.7,-8.5,0.0) - (12.5,8.5,30.6) sah=77.321167 tt=0.506897 t=0.506897
+T
+SBVH alpha=1e-05 minLeafSize=1 maxLeafSize=8 NumSpatialBins=4
+SplitBVHBuilder: progress 100%, duplicates 12%
+BVH: Scene bounds: (-27.7,-8.5,0.0) - (12.5,8.5,30.6) sah=77.835793 tt=0.558651 t=0.558651
+T
+SBVH alpha=1e-05 minLeafSize=1 maxLeafSize=8 NumSpatialBins=8
+SplitBVHBuilder: progress 100%, duplicates 19%
+BVH: Scene bounds: (-27.7,-8.5,0.0) - (12.5,8.5,30.6) sah=74.863693 tt=0.681256 t=0.681256
+T
+SBVH alpha=1e-05 minLeafSize=1 maxLeafSize=8 NumSpatialBins=16
+SplitBVHBuilder: progress 100%, duplicates 19%
+BVH: Scene bounds: (-27.7,-8.5,0.0) - (12.5,8.5,30.6) sah=73.778419 tt=0.898532 t=0.898532
+T
+SBVH alpha=1e-05 minLeafSize=1 maxLeafSize=8 NumSpatialBins=32
+SplitBVHBuilder: progress 100%, duplicates 20%
+BVH: Scene bounds: (-27.7,-8.5,0.0) - (12.5,8.5,30.6) sah=73.258018 tt=1.325108 t=1.325108
+T
+SBVH alpha=1e-05 minLeafSize=1 maxLeafSize=8 NumSpatialBins=64
+SplitBVHBuilder: progress 100%, duplicates 21%
+BVH: Scene bounds: (-27.7,-8.5,0.0) - (12.5,8.5,30.6) sah=72.802414 tt=2.171351 t=2.171351
+T
+SBVH alpha=1e-05 minLeafSize=1 maxLeafSize=8 NumSpatialBins=128
+SplitBVHBuilder: progress 100%, duplicates 21%
+BVH: Scene bounds: (-27.7,-8.5,0.0) - (12.5,8.5,30.6) sah=72.378258 tt=3.865889 t=3.865889
+T
+SBVH alpha=1e-05 minLeafSize=1 maxLeafSize=8 NumSpatialBins=256
+SplitBVHBuilder: progress 100%, duplicates 21%
+BVH: Scene bounds: (-27.7,-8.5,0.0) - (12.5,8.5,30.6) sah=72.195259 tt=7.273127 t=7.273127
+T
+SBVH alpha=1e-05 minLeafSize=1 maxLeafSize=8 NumSpatialBins=512
+SplitBVHBuilder: progress 100%, duplicates 22%
+BVH: Scene bounds: (-27.7,-8.5,0.0) - (12.5,8.5,30.6) sah=72.079788 tt=14.210622 t=14.210622
+T
+SBVH alpha=1e-05 minLeafSize=1 maxLeafSize=8 NumSpatialBins=1024
+SplitBVHBuilder: progress 100%, duplicates 21%
+BVH: Scene bounds: (-27.7,-8.5,0.0) - (12.5,8.5,30.6) sah=72.198402 tt=27.931768 t=27.931768
+T
+
+old dim=0 pos=-4.137208 sah=203705920.000000 origin=-27.740002 binSize=0.314704
+new dim=0 pos=-3.979856 sah=203341856.000000 origin=-4.451912 binSize=0.004917
+old dim=2 pos=10.757813 sah=60294352.000000 origin=0.000000 binSize=0.239063
+new dim=2 pos=10.731666 sah=60208416.000000 origin=10.518750 binSize=0.003735
+old dim=2 pos=19.889727 sah=11067818.000000 origin=10.731666 binSize=0.155221
+new dim=2 pos=19.783010 sah=11040152.000000 origin=19.734505 binSize=0.002425
+old dim=2 pos=24.853474 sah=1892024.250000 origin=19.783010 binSize=0.084508
+new dim=2 pos=24.852154 sah=1891854.500000 origin=24.768967 binSize=0.001320
+old dim=2 pos=28.165781 sah=202055.843750 origin=24.830000 binSize=0.045078
+new dim=2 pos=28.201702 sah=201400.531250 origin=28.120703 binSize=0.000704
+old dim=2 pos=29.588470 sah=37037.851563 origin=28.202301 binSize=0.018732
+new dim=2 pos=29.604568 sah=36846.343750 origin=29.569738 binSize=0.000293
+
+Sibenik Hierarchical:
+SBVH alpha=1e-05 minLeafSize=1 maxLeafSize=8 NumSpatialBins=16
+SplitBVHBuilder: progress 100%, duplicates 21%
+BVH: Scene bounds: (-27.7,-8.5,0.0) - (12.5,8.5,30.6) sah=72.202347 tt=1.056446 t=1.056446
+T
+
+SBVH alpha=1e-05 minLeafSize=1 maxLeafSize=8 NumSpatialBins=16
+old dim=0 pos=-5.081320 sah=204975808.000000 origin=-27.740002 binSize=2.517631
+new dim=0 pos=-4.137208 sah=203705920.000000 origin=-7.598951 binSize=0.314704
+old dim=2 pos=9.562500 sah=62550376.000000 origin=0.000000 binSize=1.912500
+new dim=2 pos=10.757813 sah=61333364.000000 origin=7.650000 binSize=0.239063
+old dim=2 pos=20.678905 sah=11387486.000000 origin=10.757813 binSize=1.240137
+new dim=2 pos=19.903820 sah=11097558.000000 origin=19.438768 binSize=0.155017
+old dim=2 pos=24.583399 sah=1903531.625000 origin=19.903820 binSize=0.668511
+new dim=2 pos=24.917656 sah=1879380.250000 origin=23.914888 binSize=0.083564
+old dim=2 pos=28.075624 sah=203749.406250 origin=24.830000 binSize=0.360625
+new dim=2 pos=28.165781 sah=202055.843750 origin=27.715000 binSize=0.045078
+old dim=2 pos=29.551006 sah=37493.355469 origin=28.202301 binSize=0.149856
+new dim=2 pos=29.588470 sah=37037.851563 origin=29.401150 binSize=0.018732
+
+San Miguel:
+
+BVH builder: 10500551 tris, 7609880 vertices
+SBVH alpha=1e-05 minLeafSize=1 maxLeafSize=8 NumSpatialBins=128
+old dim=0 pos=0.000000 sah=340282346638528859811704183484516925440.000000 origin=-36.936302 binSize=0.577242
+old dim=2 pos=25.539902 sah=30996547584.000000 origin=-2.644070 binSize=0.386082
+old dim=2 pos=27.084230 sah=391698048.000000 origin=-2.644070 binSize=0.386082
+old dim=2 pos=35.455566 sah=6482882.000000 origin=23.023401 binSize=0.185555
+old dim=0 pos=0.000000 sah=340282346638528859811704183484516925440.000000 origin=-28.543602 binSize=0.313178
+old dim=2 pos=32.152519 sah=187.971344 origin=23.023401 binSize=0.071883
+old dim=0 pos=-13.090188 sah=115.840782 origin=-13.408000 binSize=0.002812
+o
+
+BVH builder: 10500551 tris, 7609880 vertices
+SBVH alpha=1e-05 minLeafSize=1 maxLeafSize=8 NumSpatialBins=128
+SplitBVHBuilder: progress 100%, duplicates 5%
+BVH: Scene bounds: (-36.9,-0.5,-38.0) - (37.0,53.5,46.8) sah=29.806171 tt=148.305435 t=148.305435
+T
+SBVH alpha=1e-05 minLeafSize=1 maxLeafSize=8 NumSpatialBins=16
+SplitBVHBuilder: progress 100%, duplicates 5%
+BVH: Scene bounds: (-36.9,-0.5,-38.0) - (37.0,53.5,46.8) sah=31.215933 tt=128.205353 t=128.205353
+T
+SBVH alpha=1e-05 minLeafSize=1 maxLeafSize=8 NumSpatialBins=32
+SplitBVHBuilder: progress 100%, duplicates 5%
+BVH: Scene bounds: (-36.9,-0.5,-38.0) - (37.0,53.5,46.8) sah=29.503853 tt=133.115250 t=133.115250
+T
+Scaling by 1.93141... instead of 2:
+SBVH alpha=1e-05 minLeafSize=1 maxLeafSize=8 NumSpatialBins=32
+SplitBVHBuilder: progress 100%, duplicates 5%
+BVH: Scene bounds: (-36.9,-0.5,-38.0) - (37.0,53.5,46.8) sah=29.482475 tt=134.708725 t=134.708725
+T
+Another level of recursion:
+SBVH alpha=1e-05 minLeafSize=1 maxLeafSize=8 NumSpatialBins=32
+SplitBVHBuilder: progress 100%, duplicates 5%
+BVH: Scene bounds: (-36.9,-0.5,-38.0) - (37.0,53.5,46.8) sah=29.978428 tt=136.538757 t=136.538757
+T
+multicore sorting
+SBVH alpha=1e-05 minLeafSize=1 maxLeafSize=8 NumSpatialBins=32
+SplitBVHBuilder: progress 100%, duplicates 5%
+BVH: Scene bounds: (-36.9,-0.5,-38.0) - (37.0,53.5,46.8) sah=29.961689 tt=98.181450 t=98.181450
+T
+
+Mine:
+SplitBVHBuilder: progress 100%, duplicates 21%
+BVH: Scene bounds: (-27.7,-8.5,0.0) - (12.5,8.5,30.6) sah=73.217590 tt=4.052486 t=4.052486
+T
+Theirs (grow Fixed):
+SBVH alpha=1e-05 minLeafSize=1 maxLeafSize=8 NumSpatialBins=32
+SplitBVHBuilder: progress 100%, duplicates 20%
+BVH: Scene bounds: (-27.7,-8.5,0.0) - (12.5,8.5,30.6) sah=73.077209 tt=1.344847 t=1.344847
+T
+Mine w/ short circuit:
+SplitBVHBuilder: progress 100%, duplicates 21%
+BVH: Scene bounds: (-27.7,-8.5,0.0) - (12.5,8.5,30.6) sah=73.217590 tt=2.334928 t=2.334928
+T
+Theirs w/ short circuit:
+SplitBVHBuilder: progress 100%, duplicates 20%
+BVH: Scene bounds: (-27.7,-8.5,0.0) - (12.5,8.5,30.6) sah=73.077209 tt=1.348476 t=1.348476
+T
+Theirs w/ fixed grow:
+SBVH alpha=1e-05 minLeafSize=1 maxLeafSize=8 NumSpatialBins=32
+SplitBVHBuilder: progress 100%, duplicates 20%
+BVH: Scene bounds: (-27.7,-8.5,0.0) - (12.5,8.5,30.6) sah=73.077209 tt=1.291617 t=1.291617
+T
+Mine w/ fixed grow:
+SplitBVHBuilder: progress 100%, duplicates 21%
+BVH: Scene bounds: (-27.7,-8.5,0.0) - (12.5,8.5,30.6) sah=73.217590 tt=2.113306 t=2.113306
+T
+Theirs, One recursion:
+SplitBVHBuilder: progress 100%, duplicates 22%
+BVH: Scene bounds: (-27.7,-8.5,0.0) - (12.5,8.5,30.6) sah=72.028122 tt=1.586077 t=1.586077
+T
+Theirs, oldschool:
+SBVH alpha=1e-05 minLeafSize=1 maxLeafSize=8 NumSpatialBins=128
+SplitBVHBuilder: progress 100%, duplicates 21%
+BVH: Scene bounds: (-27.7,-8.5,0.0) - (12.5,8.5,30.6) sah=72.144089 tt=3.786345 t=3.786345
+T
+Theirs 128, one recursion:
+SplitBVHBuilder: progress 100%, duplicates 22%
+BVH: Scene bounds: (-27.7,-8.5,0.0) - (12.5,8.5,30.6) sah=72.238708 tt=4.825815 t=4.825815
+T
+Conference: Mixed, one recursion
+SBVH alpha=1e-05 minLeafSize=1 maxLeafSize=8 NumSpatialBins=32
+SplitBVHBuilder: progress 100%, duplicates 24%
+BVH: Scene bounds: (-0.6,-0.5,-0.0) - (36.5,23.0,8.9) sah=58.393707 tt=3.512975 t=3.512975
+T
+Zoom if greater than 10 prims:
+SBVH alpha=1e-05 minLeafSize=1 maxLeafSize=8 NumSpatialBins=32
+SplitBVHBuilder: progress 100%, duplicates 24%
+BVH: Scene bounds: (-0.6,-0.5,-0.0) - (36.5,23.0,8.9) sah=58.391006 tt=3.452998 t=3.452998
+T
+Zoom threh 100:
+SBVH alpha=1e-05 minLeafSize=1 maxLeafSize=8 NumSpatialBins=32
+SplitBVHBuilder: progress 100%, duplicates 24%
+BVH: Scene bounds: (-0.6,-0.5,-0.0) - (36.5,23.0,8.9) sah=58.440388 tt=3.259376 t=3.259376
+T
+Zoom thresh 30:
+SBVH alpha=1e-05 minLeafSize=1 maxLeafSize=8 NumSpatialBins=32
+SplitBVHBuilder: progress 100%, duplicates 24%
+BVH: Scene bounds: (-0.6,-0.5,-0.0) - (36.5,23.0,8.9) sah=58.396225 tt=3.374028 t=3.374028
+T
+San Miguel:
+SBVH alpha=1e-06 minLeafSize=1 maxLeafSize=8 NumSpatialBins=32
+SplitBVHBuilder: progress 100%, duplicates 12%
+BVH: Scene bounds: (-36.9,-0.5,-38.0) - (37.0,53.5,46.8) sah=27.809151 tt=107.077682 t=107.077682
+T
+
+helped=13659 tried=18000 percent=0.758833 thresh=0.000000
+SplitBVHBuilder: progress 100%, duplicates 24%
+BVH: Scene bounds: (-0.6,-0.5,-0.0) - (36.5,23.0,8.9) sah=58.386806 tt=3.551200 t=3.551200
+T
+helped=13659 tried=18000 percent=0.758833 thresh=0.028270
+SplitBVHBuilder: progress 100%, duplicates 24%
+BVH: Scene bounds: (-0.6,-0.5,-0.0) - (36.5,23.0,8.9) sah=58.386806 tt=3.554087 t=3.554087
+T
+helped=13024 tried=17000 percent=0.766118 thresh=0.056540
+SplitBVHBuilder: progress 100%, duplicates 24%
+BVH: Scene bounds: (-0.6,-0.5,-0.0) - (36.5,23.0,8.9) sah=58.386787 tt=3.539199 t=3.539199
+Thelped=11031 tried=14000 percent=0.787929 thresh=0.084810
+SplitBVHBuilder: progress 100%, duplicates 24%
+BVH: Scene bounds: (-0.6,-0.5,-0.0) - (36.5,23.0,8.9) sah=58.386909 tt=3.461222 t=3.461222
+T
+helped=9532 tried=12000 percent=0.794333 thresh=0.113080
+SplitBVHBuilder: progress 100%, duplicates 24%
+BVH: Scene bounds: (-0.6,-0.5,-0.0) - (36.5,23.0,8.9) sah=58.387268 tt=3.443233 t=3.443233
+T
+helped=8618 tried=11000 percent=0.783455 thresh=0.141350
+SplitBVHBuilder: progress 100%, duplicates 24%
+BVH: Scene bounds: (-0.6,-0.5,-0.0) - (36.5,23.0,8.9) sah=58.387939 tt=3.409264 t=3.409264
+T
+helped=7624 tried=10000 percent=0.762400 thresh=0.197890
+SplitBVHBuilder: progress 100%, duplicates 24%
+BVH: Scene bounds: (-0.6,-0.5,-0.0) - (36.5,23.0,8.9) sah=58.388779 tt=3.368570 t=3.368570
+T
+helped=6824 tried=9000 percent=0.758222 thresh=0.226160
+SplitBVHBuilder: progress 100%, duplicates 24%
+BVH: Scene bounds: (-0.6,-0.5,-0.0) - (36.5,23.0,8.9) sah=58.388943 tt=3.350006 t=3.350006
+T
+helped=6036 tried=8000 percent=0.754500 thresh=0.282700
+SplitBVHBuilder: progress 100%, duplicates 24%
+BVH: Scene bounds: (-0.6,-0.5,-0.0) - (36.5,23.0,8.9) sah=58.389256 tt=3.326835 t=3.326835
+T
+helped=835 tried=1000 percent=0.835000 thresh=2.826997
+SplitBVHBuilder: progress 100%, duplicates 24%
+BVH: Scene bounds: (-0.6,-0.5,-0.0) - (36.5,23.0,8.9) sah=58.401192 tt=3.189679 t=3.189679
+T
+NumSpatialBins=64
+helped=7526 tried=9000 percent=0.836222 thresh=0.226160
+SplitBVHBuilder: progress 100%, duplicates 25%
+BVH: Scene bounds: (-0.6,-0.5,-0.0) - (36.5,23.0,8.9) sah=58.298798 tt=4.876527 t=4.876527
+T
+NumSpatialBins=29
+helped=8479 tried=9000 percent=0.942111 thresh=0.226160
+SplitBVHBuilder: progress 100%, duplicates 24%
+BVH: Scene bounds: (-0.6,-0.5,-0.0) - (36.5,23.0,8.9) sah=58.649200 tt=3.201982 t=3.201982
+T
+
+San Miguel:
+NumSpatialBins=16
+helped=54932 tried=69000 percent=0.796116 thresh=0.237205
+SplitBVHBuilder: progress 100%, duplicates 12%
+BVH: Scene bounds: (-36.9,-0.5,-38.0) - (37.0,53.5,46.8) sah=28.703255 tt=95.036026 t=95.036026
+T
+NumSpatialBins=29
+helped=63727 tried=70000 percent=0.910386 thresh=0.237205
+SplitBVHBuilder: progress 100%, duplicates 12%
+BVH: Scene bounds: (-36.9,-0.5,-38.0) - (37.0,53.5,46.8) sah=28.728909 tt=103.779709 t=103.779709
+T
+NumSpatialBins=32
+helped=61269 tried=70000 percent=0.875271 thresh=0.237205
+SplitBVHBuilder: progress 100%, duplicates 12%
+BVH: Scene bounds: (-36.9,-0.5,-38.0) - (37.0,53.5,46.8) sah=27.809015 tt=105.892586 t=105.892586
+T
+NumSpatialBins=64
+helped=63016 tried=69000 percent=0.913275 thresh=0.237205
+SplitBVHBuilder: progress 100%, duplicates 12%
+BVH: Scene bounds: (-36.9,-0.5,-38.0) - (37.0,53.5,46.8) sah=27.846203 tt=127.398476 t=127.398476
+T

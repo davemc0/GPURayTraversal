@@ -43,7 +43,13 @@ struct RayStats
 {
     RayStats()          { clear(); }
     void clear()        { memset(this,0,sizeof(RayStats)); }
-    void print() const  { if(numRays>0) printf("Ray stats: (%s) %d rays, %.1f tris/ray, %.1f nodes/ray (cost=%.2f) %.2f treelets/ray\n", platform.getName().getPtr(), numRays, 1.f*numTriangleTests/numRays, 1.f*numNodeTests/numRays, (platform.getSAHTriangleCost()*numTriangleTests/numRays + platform.getSAHNodeCost()*numNodeTests/numRays), 1.f*numTreelets/numRays ); }
+    void print() const  { if(numRays>0) printf("Ray stats: (%s) %d rays, %.1f tris/ray, %.1f nodes/ray (cost=%.2f) %.2f treelets/ray\n",
+#if FW_CUDA_DEVICE
+        "",
+#else
+        platform.getName().getPtr(),
+#endif
+        numRays, 1.f*numTriangleTests/numRays, 1.f*numNodeTests/numRays, (platform.getSAHTriangleCost()*numTriangleTests/numRays + platform.getSAHNodeCost()*numNodeTests/numRays), 1.f*numTreelets/numRays ); }
 
     S32         numRays;
     S32         numTriangleTests;
@@ -90,7 +96,7 @@ public:
             enablePrints    = true;
             splitAlpha      = 1.0e-5f;
             doMulticore     = true;
-            maxDuplication  = 1.5f; // Can make 50% extra references
+            maxDuplication  = 1.0f; // Can make this % extra references
         }
 
         U32 computeHash(void) const

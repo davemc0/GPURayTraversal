@@ -120,7 +120,7 @@ template <class T> bool sortDefaultCompare(void* data, int idxA, int idxB)
 
 template <class T> void sortDefaultSwap(void* data, int idxA, int idxB)
 {
-    swap(((T*)data)[idxA], ((T*)data)[idxB]);
+    std::swap(((T*)data)[idxA], ((T*)data)[idxB]);
 }
 
 //------------------------------------------------------------------------

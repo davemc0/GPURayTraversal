@@ -29,6 +29,8 @@
 #include "gpu/CudaModule.hpp"
 #include "base/Timer.hpp"
 
+#include <cstdio>
+
 using namespace FW;
 
 // Added because a lot of the CUDA driver API functions are deprecated and I don't care.

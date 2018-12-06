@@ -2,6 +2,9 @@
 #include "bvh/RandomBVHBuilder.hpp"
 #include "bvh/BVHNode.hpp"
 
+// Gives us std::swap, which is declared but not defined in type_traits.h
+#include <utility>
+
 using namespace FW;
 
 //------------------------------------------------------------------------
@@ -68,7 +71,7 @@ void RandomBVHBuilder::randomizeArray(Array<S32>& ar)
 {
     for (int i = 0; i < ar.getSize(); i++) {
         int t = rand() % ar.getSize();
-        swap(ar[i], ar[t]);
+        std::swap(ar[i], ar[t]);
     }
 }
 

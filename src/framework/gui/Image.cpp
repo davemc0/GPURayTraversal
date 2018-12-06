@@ -35,6 +35,9 @@
 #include "io/ImageTiffIO.hpp"
 #include "io/ImageBmpIO.hpp"
 
+ // Gives us std::swap, which is declared but not defined in type_traits.h
+#include <utility>
+
 using namespace FW;
 
 //------------------------------------------------------------------------
@@ -447,7 +450,7 @@ void Image::flipX(void)
         for (int x = (m_size.x >> 1); x > 0; x--)
         {
             for (int i = 0; i < bpp; i++)
-                swap(ptrA[i], ptrB[i]);
+                std::swap(ptrA[i], ptrB[i]);
             ptrA += bpp;
             ptrB -= bpp;
         }

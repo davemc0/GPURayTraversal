@@ -31,6 +31,8 @@
 #include "gpu/CudaCompiler.hpp"
 #include "gui/Image.hpp"
 
+#include <cstdio>
+
 using namespace FW;
 
 // Added because a lot of the CUDA driver API functions are deprecated and I don't care.

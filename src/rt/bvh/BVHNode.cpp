@@ -119,7 +119,7 @@ void BVHNode::computeSubtreeValues(const Platform& p, const float rootArea, bool
         ch->computeSubtreeValues(p, rootArea, recomputeBounds, resetFrozen);
     }
 
-    computeValues(p, rootArea, false, resetFrozen);
+    computeValues(p, rootArea, recomputeBounds, resetFrozen);
 }
 
 //-------------------------------------------------------------

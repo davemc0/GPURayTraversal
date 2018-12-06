@@ -38,10 +38,13 @@ class BVHNode;
 class Platform
 {
 public:
-    Platform()                                                                                                          { m_name=String("Default"); m_SAHNodeCost = 1.f; m_SAHTriangleCost = 1.f; m_nodeBatchSize = 1; m_triBatchSize = 1; m_minLeafSize=1; m_maxLeafSize=0x7FFFFFF; }
-    Platform(const String& name,float nodeCost=1.f, float triCost=1.f, S32 nodeBatchSize=1, S32 triBatchSize=1) { m_name=name; m_SAHNodeCost = nodeCost; m_SAHTriangleCost = triCost; m_nodeBatchSize = nodeBatchSize; m_triBatchSize = triBatchSize; m_minLeafSize=1; m_maxLeafSize=0x7FFFFFF; }
+#if !FW_CUDA_DEVICE
+    Platform() { m_name = String("Default"); m_SAHNodeCost = 1.f; m_SAHTriangleCost = 1.f; m_nodeBatchSize = 1; m_triBatchSize = 1; m_minLeafSize = 1; m_maxLeafSize = 0x7FFFFFF; }
+    Platform(const String& name, float nodeCost = 1.f, float triCost = 1.f, S32 nodeBatchSize = 1, S32 triBatchSize = 1)
+               { m_name = name; m_SAHNodeCost = nodeCost; m_SAHTriangleCost = triCost; m_nodeBatchSize = nodeBatchSize; m_triBatchSize = triBatchSize; m_minLeafSize = 1; m_maxLeafSize = 0x7FFFFFF; }
 
     const String&   getName() const                     { return m_name; }
+#endif
 
     // SAH weights
     float getSAHTriangleCost() const                    { return m_SAHTriangleCost; }
@@ -65,16 +68,20 @@ public:
     S32   getMinLeafSize() const                        { return m_minLeafSize; }
     S32   getMaxLeafSize() const                        { return m_maxLeafSize; }
 
+#if !FW_CUDA_DEVICE
     U32   computeHash() const                           { return hashBits(hash<String>(m_name), floatToBits(m_SAHNodeCost), floatToBits(m_SAHTriangleCost), hashBits(m_triBatchSize, m_nodeBatchSize, m_minLeafSize, m_maxLeafSize)); }
+#endif
 
 private:
-    String  m_name;
     float   m_SAHNodeCost;
     float   m_SAHTriangleCost;
     S32     m_triBatchSize;
     S32     m_nodeBatchSize;
     S32     m_minLeafSize;
     S32     m_maxLeafSize;
+#if !FW_CUDA_DEVICE
+    String  m_name;
+#endif
 };
 
 

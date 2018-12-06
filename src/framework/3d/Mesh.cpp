@@ -32,6 +32,9 @@
 #include "base/UnionFind.hpp"
 #include "base/BinaryHeap.hpp"
 
+ // Gives us std::swap, which is declared but not defined in type_traits.h
+#include <utility>
+
 using namespace FW;
 
 //------------------------------------------------------------------------
@@ -672,7 +675,7 @@ void MeshBase::flipTriangles(void)
     {
         Array<Vec3i>& tris = mutableIndices(i);
         for (int j = 0; j < tris.getSize(); j++)
-            swap(tris[j].x, tris[j].y);
+            std::swap(tris[j].x, tris[j].y);
     }
 }
 
@@ -932,7 +935,7 @@ void MeshBase::simplify(F32 maxError)
                     verts[outGroups[tri[i]]].outWeight += area;
 
                     if (vi.x > vi.y)
-                        swap(vi.x, vi.y);
+                        std::swap(vi.x, vi.y);
                     if (vi.x == vi.y || edgeSet.contains(vi))
                         continue;
 

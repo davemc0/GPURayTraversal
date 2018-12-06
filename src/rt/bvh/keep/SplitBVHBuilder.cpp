@@ -441,7 +441,6 @@ SplitBVHBuilder::SpatialSplit SplitBVHBuilder::findSpatialSplit(const NodeSpec& 
         std::for_each(parseq, &m_reqIndices[0] + st, &m_reqIndices[0] + end, [&](auto& cnt) {
             S32 i = static_cast<S32>(&cnt - &m_reqIndices[0]);
             S32 ofs = i > st ? m_reqIndices[i - 1] : 0;
-            // S32 opl = m_reqIndices[i]; Don't need one-past-last anymore
 
             const Reference& ref = m_refStack[i];
             Vec3i firstBin = clamp(Vec3i((ref.bounds.min() - origin) * invBinSize), 0, NumSpatialBins - 1);

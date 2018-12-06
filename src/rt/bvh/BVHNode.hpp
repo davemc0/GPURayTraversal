@@ -94,7 +94,7 @@ public:
 class InnerNode : public BVHNode
 {
 public:
-    InnerNode(const AABB& bounds, BVHNode* child0, BVHNode* child1)   { m_bounds=bounds; m_children[0]=child0; m_children[1]=child1; }
+    InnerNode(const AABB& bounds = AABB(), BVHNode* child0 = nullptr, BVHNode* child1 = nullptr) { m_bounds = bounds; m_children[0] = child0; m_children[1] = child1; }
 
     bool        isLeaf() const                  { return false; }
     S32         getNumChildNodes() const        { return 2; }
@@ -103,7 +103,9 @@ public:
     BVHNode*    m_children[2];
 
     void* operator new(size_t size)             { FW_ASSERT(s_AA); return s_AA->alloc(size); }
+    void* operator new[](size_t size)           { FW_ASSERT(s_AA); return s_AA->alloc(size); }
     void operator delete(void* ptr)             { FW_ASSERT(s_AA); return s_AA->free((InnerNode*)ptr); }
+    void operator delete[](void* ptr)           { FW_ASSERT(s_AA); return s_AA->free((InnerNode*)ptr); }
     static ArrayAllocator<InnerNode>*           s_AA;
 };
 
@@ -111,7 +113,7 @@ public:
 class LeafNode : public BVHNode
 {
 public:
-    LeafNode(const AABB& bounds,int lo,int hi)  { m_bounds=bounds; m_lo=lo; m_hi=hi; }
+    LeafNode(const AABB& bounds = AABB() , S32 lo = -1, S32 hi = -1) { m_bounds = bounds; m_lo = lo; m_hi = hi; }
     LeafNode(const LeafNode& s)                 { *this = s; }
 
     bool        isLeaf() const                  { return true; }
@@ -123,7 +125,9 @@ public:
     S32         m_hi;
 
     void* operator new(size_t size)             { FW_ASSERT(s_AA); return s_AA->alloc(size); }
+    void* operator new[](size_t size)           { FW_ASSERT(s_AA); return s_AA->alloc(size); }
     void operator delete(void* ptr)             { FW_ASSERT(s_AA); return s_AA->free((LeafNode*)ptr); }
+    void operator delete[](void* ptr)           { FW_ASSERT(s_AA); return s_AA->free((LeafNode*)ptr); }
     static ArrayAllocator<LeafNode>*            s_AA;
 };
 

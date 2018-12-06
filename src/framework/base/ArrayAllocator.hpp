@@ -43,24 +43,36 @@ public:
     }
 
     // Allocates one T on the array
-    T* alloc(size_t )
+    T* alloc(size_t bytes)
     {
+        size_t items = bytes / sizeof(T);
+
         //FW_ASSERT(bytes == sizeof(T));
        // printf("0x%016llx alloc() %lld %lld\n", (__int64)m_items, m_firstEmpty, m_count);
         if (m_firstEmpty >= m_size) {
-            FW_ASSERT(!!!"ItemArrayAllocator is full");
+            FW_ASSERT(!!!"ArrayAllocator is full");
+            return nullptr;
+        }
+
+        if (m_firstEmpty + items > m_size) {
+            FW_ASSERT(!!!"ArrayAllocator can't hold this many");
             return nullptr;
         }
 
         T* ptr = &m_items[m_firstEmpty];
 
         AllocUnion* A = (AllocUnion*)(void*)ptr;
-        m_firstEmpty = A->nextEmpty ? A->nextEmpty : (m_firstEmpty + 1);
+        if (items > 1 && A->nextEmpty) {
+            FW_ASSERT(!!!"Trying to allocate an array where there's only one available spot");
+            return nullptr;
+        }
+        m_firstEmpty = A->nextEmpty ? A->nextEmpty : (m_firstEmpty + items);
         if (A->nextEmpty == 0) {
+            // A is the first of a span that's empty.
             AllocUnion* B = (AllocUnion*)(void*)&m_items[m_firstEmpty];
             B->nextEmpty = 0;
         }
-        m_count++;
+        m_count += items;
         FW_ASSERT(m_count <= m_size);
 
         return ptr;

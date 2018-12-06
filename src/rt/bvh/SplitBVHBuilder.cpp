@@ -29,8 +29,12 @@
 #include "bvh/SplitBVHBuilder.hpp"
 #include "base/Sort.hpp"
 
+ // Gives us std::swap, which is declared but not defined in type_traits.h
+#include <utility>
+
 using namespace FW;
 
+//#define ANALYZE_SPLITS
 //------------------------------------------------------------------------
 
 SplitBVHBuilder::SplitBVHBuilder(BVH& bvh, const BVH::BuildParams& params)
@@ -53,7 +57,7 @@ SplitBVHBuilder::~SplitBVHBuilder(void)
 BVHNode* SplitBVHBuilder::run(void)
 {
     if (m_params.enablePrints)
-        printf("SBVH alpha=%g minLeafSize=%d maxLeafSize=%d\n", m_params.splitAlpha, m_platform.getMinLeafSize(), m_platform.getMaxLeafSize());
+        printf("SBVH alpha=%g minLeafSize=%d maxLeafSize=%d NumSpatialBins=%d\n", m_params.splitAlpha, m_platform.getMinLeafSize(), m_platform.getMaxLeafSize(), NumSpatialBins);
 
     // Initialize reference stack and determine root bounds.
 
@@ -112,7 +116,7 @@ bool SplitBVHBuilder::sortCompare(void* data, int idxA, int idxB)
 void SplitBVHBuilder::sortSwap(void* data, int idxA, int idxB)
 {
     SplitBVHBuilder* ptr = (SplitBVHBuilder*)data;
-    swap(ptr->m_refStack[idxA], ptr->m_refStack[idxB]);
+    std::swap(ptr->m_refStack[idxA], ptr->m_refStack[idxB]);
 }
 
 //------------------------------------------------------------------------
@@ -131,7 +135,6 @@ BVHNode* SplitBVHBuilder::buildNode(NodeSpec spec, int level, F32 progressStart,
     // Remove degenerates.
     // XXX I think this is only necessary at the root. Below that the splitter should be able to not make degenerates.
     {
-        printf("spec.numRef=%d\n", spec.numRef);
         int firstRef = m_refStack.getSize() - spec.numRef;
         for (int i = m_refStack.getSize() - 1; i >= firstRef; i--)
         {
@@ -139,8 +142,9 @@ BVHNode* SplitBVHBuilder::buildNode(NodeSpec spec, int level, F32 progressStart,
             if (min(size) < 0.0f || sum(size) == max(size))
                 m_refStack.removeSwap(i);
         }
+        if(spec.numRef != m_refStack.getSize() - firstRef)
+            printf("spec.numRef=%d new=%d\n", spec.numRef, m_refStack.getSize() - firstRef);
         spec.numRef = m_refStack.getSize() - firstRef;
-        printf("spec.numRef=%d\n", spec.numRef);
     }
 
     // Small enough or too deep => create leaf.
@@ -171,7 +175,9 @@ BVHNode* SplitBVHBuilder::buildNode(NodeSpec spec, int level, F32 progressStart,
     F32 minSAH = min(leafSAH, object.sah, spatial.sah);
     if (minSAH == leafSAH && spec.numRef <= m_platform.getMaxLeafSize())
         return createLeaf(spec);
-
+#ifdef ANALYZE_SPLITS
+    exit(0);
+#endif
     // Perform split.
 
     NodeSpec left, right;
@@ -212,7 +218,7 @@ SplitBVHBuilder::ObjectSplit SplitBVHBuilder::findObjectSplit(const NodeSpec& sp
 
     for (m_sortDim = 0; m_sortDim < 3; m_sortDim++)
     {
-        sort(this, m_refStack.getSize() - spec.numRef, m_refStack.getSize(), sortCompare, sortSwap);
+        sort(this, m_refStack.getSize() - spec.numRef, m_refStack.getSize(), sortCompare, sortSwap, m_params.doMulticore);
 
         // Sweep right to left and determine bounds.
 
@@ -230,6 +236,9 @@ SplitBVHBuilder::ObjectSplit SplitBVHBuilder::findObjectSplit(const NodeSpec& sp
         {
             leftBounds.grow(refPtr[i - 1].bounds);
             F32 sah = nodeSAH + leftBounds.area() * m_platform.getTriangleCost(i) + m_rightBounds[i - 1].area() * m_platform.getTriangleCost(spec.numRef - i);
+#ifdef ANALYZE_SPLITS
+            printf("OB,%d,%d,%d,%d,%f,%f,%f,%f,%f\n", m_sortDim, i, i, spec.numRef - i, leftBounds.area(), m_rightBounds[i - 1].area(), sah, leftBounds.max()[m_sortDim], m_rightBounds[i - 1].min()[m_sortDim]);
+#endif
             F32 tieBreak = sqr((F32)i) + sqr((F32)(spec.numRef - i));
             if (sah < split.sah || (sah == split.sah && tieBreak < bestTieBreak))
             {
@@ -250,7 +259,7 @@ SplitBVHBuilder::ObjectSplit SplitBVHBuilder::findObjectSplit(const NodeSpec& sp
 void SplitBVHBuilder::performObjectSplit(NodeSpec& left, NodeSpec& right, const NodeSpec& spec, const ObjectSplit& split)
 {
     m_sortDim = split.sortDim;
-    sort(this, m_refStack.getSize() - spec.numRef, m_refStack.getSize(), sortCompare, sortSwap);
+    sort(this, m_refStack.getSize() - spec.numRef, m_refStack.getSize(), sortCompare, sortSwap, m_params.doMulticore);
 
     left.numRef = split.numLeft;
     left.bounds = split.leftBounds;
@@ -262,21 +271,40 @@ void SplitBVHBuilder::performObjectSplit(NodeSpec& left, NodeSpec& right, const 
 
 SplitBVHBuilder::SpatialSplit SplitBVHBuilder::findSpatialSplit(const NodeSpec& spec, F32 nodeSAH)
 {
-    if (spec.numRef > 100000000) {
-        printf("findSpatialSplit(%d)", spec.numRef);
-        m_progressTimer.start();
+    const int simpleN = 5;
+    const float zoomThresh = m_minOverlap * 8.f;
+
+    Vec3f origin = spec.bounds.min();
+    Vec3f binSize = (spec.bounds.max() - origin) * (1.0f / (F32)NumSpatialBins);
+
+    SpatialSplit spl = spec.numRef < simpleN ? doFindSpatialSplitSimple(spec, nodeSAH, origin, binSize, 0, 3) : doFindSpatialSplit(spec, nodeSAH, origin, binSize, 0, 3);
+
+    int dim = spl.dim;
+
+    if (spec.bounds.area() > zoomThresh) {
+        // Zoom in to an area two bins wide.
+        origin[dim] = spl.pos - binSize[dim];
+        binSize[dim] = binSize[dim] * 2.f / (F32)NumSpatialBins;
+
+        static int helped = 0, tries = 0;
+        SpatialSplit spl1 = spec.numRef < simpleN ? doFindSpatialSplitSimple(spec, nodeSAH, origin, binSize, dim, dim + 1) : doFindSpatialSplit(spec, nodeSAH, origin, binSize, dim, dim + 1);
+        if (spl1.sah < spl.sah)
+            spl = spl1;
     }
 
+    return spl;
+}
+
+SplitBVHBuilder::SpatialSplit SplitBVHBuilder::doFindSpatialSplit(const NodeSpec& spec, F32 nodeSAH, Vec3f origin, Vec3f binSize, int dimBegin, int dimEnd)
+{
     const Vec3i* tris = (const Vec3i*)m_bvh.getScene()->getTriVtxIndexBuffer().getPtr();
     const Vec3f* verts = (const Vec3f*)m_bvh.getScene()->getVtxPosBuffer().getPtr();
 
     // Initialize bins.
 
-    Vec3f origin = spec.bounds.min();
-    Vec3f binSize = (spec.bounds.max() - origin) * (1.0f / (F32)NumSpatialBins);
     Vec3f invBinSize = 1.0f / binSize;
 
-    for (int dim = 0; dim < 3; dim++)
+    for (int dim = dimBegin; dim < dimEnd; dim++)
     {
         for (int i = 0; i < NumSpatialBins; i++)
         {
@@ -295,13 +323,14 @@ SplitBVHBuilder::SpatialSplit SplitBVHBuilder::findSpatialSplit(const NodeSpec& 
         Vec3i firstBin = clamp(Vec3i((ref.bounds.min() - origin) * invBinSize), 0, NumSpatialBins - 1);
         Vec3i lastBin = clamp(Vec3i((ref.bounds.max() - origin) * invBinSize), firstBin, NumSpatialBins - 1);
 
-        for (int dim = 0; dim < 3; dim++)
+        for (int dim = dimBegin; dim < dimEnd; dim++)
         {
             Reference currRef = ref;
             for (int i = firstBin[dim]; i < lastBin[dim]; i++)
             {
                 Reference leftRef, rightRef;
                 splitReference(leftRef, rightRef, currRef, dim, origin[dim] + binSize[dim] * (F32)(i + 1), tris, verts);
+
                 m_bins[dim][i].bounds.grow(leftRef.bounds);
                 currRef = rightRef;
             }
@@ -314,7 +343,7 @@ SplitBVHBuilder::SpatialSplit SplitBVHBuilder::findSpatialSplit(const NodeSpec& 
     // Select best split plane.
 
     SpatialSplit split;
-    for (int dim = 0; dim < 3; dim++)
+    for (int dim = dimBegin; dim < dimEnd; dim++)
     {
         // Sweep right to left and determine bounds.
 
@@ -338,6 +367,10 @@ SplitBVHBuilder::SpatialSplit SplitBVHBuilder::findSpatialSplit(const NodeSpec& 
             rightNum -= m_bins[dim][i - 1].exit;
 
             F32 sah = nodeSAH + leftBounds.area() * m_platform.getTriangleCost(leftNum) + m_rightBounds[i - 1].area() * m_platform.getTriangleCost(rightNum);
+//#define ANALYZE_SPLITS
+#ifdef ANALYZE_SPLITS
+            printf("SP,%d,%d,%d,%d,%f,%f,%f,%f,%f\n", dim, i, leftNum, rightNum, leftBounds.area(), m_rightBounds[i - 1].area(), sah, leftBounds.max()[dim], m_rightBounds[i - 1].min()[dim]);
+#endif
             if (sah < split.sah)
             {
                 split.sah = sah;
@@ -347,8 +380,49 @@ SplitBVHBuilder::SpatialSplit SplitBVHBuilder::findSpatialSplit(const NodeSpec& 
         }
     }
 
-    if (spec.numRef > 100000000) {
-        printf(" t=%f\n", m_progressTimer.end());
+    return split;
+}
+
+SplitBVHBuilder::SpatialSplit SplitBVHBuilder::doFindSpatialSplitSimple(const NodeSpec& spec, F32 nodeSAH, Vec3f origin, Vec3f binSize, int dimBegin, int dimEnd)
+{
+    const Vec3i* tris = (const Vec3i*)m_bvh.getScene()->getTriVtxIndexBuffer().getPtr();
+    const Vec3f* verts = (const Vec3f*)m_bvh.getScene()->getVtxPosBuffer().getPtr();
+
+    // Select best split plane.
+
+    SpatialSplit split;
+    for (int dim = dimBegin; dim < dimEnd; dim++)
+    {
+        for (int i = 1; i < NumSpatialBins; i++)
+        {
+            AABB leftBounds, rightBounds;
+            int leftNum = 0, rightNum = 0;
+            float pos = origin[dim] + binSize[dim] * (F32)i;
+
+            for (int refIdx = m_refStack.getSize() - spec.numRef; refIdx < m_refStack.getSize(); refIdx++)
+            {
+                const Reference& ref = m_refStack[refIdx];
+                Reference leftRef, rightRef;
+                splitReference(leftRef, rightRef, ref, dim, pos, tris, verts);
+                if (leftRef.bounds.valid()) {
+                    leftBounds.grow(leftRef.bounds);
+                    leftNum++;
+                }
+                if (rightRef.bounds.valid()) {
+                    rightBounds.grow(rightRef.bounds);
+                    rightNum++;
+                }
+            }
+
+            F32 sah = nodeSAH + leftBounds.area() * m_platform.getTriangleCost(leftNum) + rightBounds.area() * m_platform.getTriangleCost(rightNum);
+
+            if (sah < split.sah)
+            {
+                split.sah = sah;
+                split.dim = dim;
+                split.pos = pos;
+            }
+        }
     }
 
     return split;
@@ -380,7 +454,7 @@ void SplitBVHBuilder::performSpatialSplit(NodeSpec& left, NodeSpec& right, const
         if (refs[i].bounds.max()[split.dim] <= split.pos)
         {
             left.bounds.grow(refs[i].bounds);
-            swap(refs[i], refs[leftEnd++]);
+            std::swap(refs[i], refs[leftEnd++]);
         }
 
         // Entirely on the right-hand side?
@@ -388,7 +462,7 @@ void SplitBVHBuilder::performSpatialSplit(NodeSpec& left, NodeSpec& right, const
         else if (refs[i].bounds.min()[split.dim] >= split.pos)
         {
             right.bounds.grow(refs[i].bounds);
-            swap(refs[i--], refs[--rightStart]);
+            std::swap(refs[i--], refs[--rightStart]);
         }
     }
 
@@ -435,7 +509,7 @@ void SplitBVHBuilder::performSpatialSplit(NodeSpec& left, NodeSpec& right, const
         else if (minSAH == unsplitRightSAH)
         {
             right.bounds = rub;
-            swap(refs[leftEnd], refs[--rightStart]);
+            std::swap(refs[leftEnd], refs[--rightStart]);
         }
 
         // Duplicate?
@@ -460,7 +534,16 @@ void SplitBVHBuilder::splitReference(Reference& left, Reference& right, const Re
     // Initialize references.
 
     left.triIdx = right.triIdx = ref.triIdx;
-    left.bounds = right.bounds = AABB();
+    //left.bounds = right.bounds = AABB(); // Caller has already cleared them.
+
+    if (ref.bounds.max()[dim] < pos) {
+        left.bounds = ref.bounds;
+        return;
+    }
+    if (ref.bounds.min()[dim] > pos) {
+        right.bounds = ref.bounds;
+        return;
+    }
 
     // Loop over vertices/edges.
 
@@ -493,7 +576,7 @@ void SplitBVHBuilder::splitReference(Reference& left, Reference& right, const Re
 
     // Intersect with original bounds.
 
-    left.bounds.max()[dim] = pos;
+    left.bounds.max()[dim] = pos; // Use precise split plane, rather than lerp result
     right.bounds.min()[dim] = pos;
     left.bounds.intersect(ref.bounds);
     right.bounds.intersect(ref.bounds);

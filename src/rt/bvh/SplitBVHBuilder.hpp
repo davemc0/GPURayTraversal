@@ -40,7 +40,7 @@ private:
     {
         MaxDepth        = 64,
         MaxSpatialDepth = 48,
-        NumSpatialBins  = 128,
+        NumSpatialBins  = 32,
     };
 
     struct Reference
@@ -103,6 +103,9 @@ private:
     void                    performObjectSplit  (NodeSpec& left, NodeSpec& right, const NodeSpec& spec, const ObjectSplit& split);
 
     SpatialSplit            findSpatialSplit    (const NodeSpec& spec, F32 nodeSAH);
+    SpatialSplit            doFindSpatialSplitSimple(const NodeSpec & spec, F32 nodeSAH, Vec3f origin, Vec3f binSize, int dimBegin, int dimEnd);
+    SpatialSplit            doFindSpatialSplit  (const NodeSpec & spec, F32 nodeSAH, Vec3f origin, Vec3f binSize, int dimBegin, int dimEnd);
+
     void                    performSpatialSplit (NodeSpec& left, NodeSpec& right, const NodeSpec& spec, const SpatialSplit& split);
     void                    splitReference      (Reference& left, Reference& right, const Reference& ref, int dim, F32 pos, const Vec3i* tris, const Vec3f* verts);
 

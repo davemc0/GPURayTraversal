@@ -29,8 +29,6 @@
 
 #pragma warning(disable:4530) // C++ exception handler used, but unwind semantics are not enabled.
 #include <new>
-#include <utility>
-using std::swap;
 #include <string.h>
 
 //------------------------------------------------------------------------
@@ -176,8 +174,6 @@ void            profileEnd      (bool printResults = true);
 
 //------------------------------------------------------------------------
 // min(), max(), clamp().
-
-using std::swap;
 
 #define FW_SPECIALIZE_MINMAX(TEMPLATE, T, MIN, MAX) \
     TEMPLATE FW_CUDA_FUNC T min(T a, T b) { return MIN; } \

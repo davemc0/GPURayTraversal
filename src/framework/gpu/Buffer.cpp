@@ -28,6 +28,9 @@
 #include "gpu/Buffer.hpp"
 #include "gpu/CudaModule.hpp"
 
+// For printf
+#include <cstdio>
+
 using namespace FW;
 
 // Added because a lot of the CUDA driver API functions are deprecated and I don't care.
@@ -688,6 +691,7 @@ void Buffer::cudaAllocManaged(CUdeviceptr& cudaPtr, CUdeviceptr& cudaBase, S64 s
         max(1U, (U32)(size + align - 1)), ::CU_MEM_ATTACH_GLOBAL));
     cudaPtr = cudaBase + align - 1;
     cudaPtr -= (U32)cudaPtr % (U32)align;
+    // printf("Buffer managed: 0x%016llx\n", cudaBase);
 
     FW_ASSERT(cudaBase == cudaPtr);
 }
@@ -701,6 +705,7 @@ void Buffer::cudaFree(CUdeviceptr& cudaPtr, CUdeviceptr& cudaBase, GLuint glBuff
     {
         //printf("cudaFree hints=%d glBuffer=%d\n", hints, glBuffer);
         if ((hints & Hint_CudaGL) == 0) {
+            // printf("Buffer free managed: 0x%016llx\n", cudaBase);
             CudaModule::checkError("cuMemFree", cuMemFree(cudaBase));
         }
         else {

@@ -28,6 +28,9 @@
 #include "base/Sort.hpp"
 #include "base/MulticoreLauncher.hpp"
 
+ // Gives us std::swap, which is declared but not defined in type_traits.h
+#include <utility>
+
 using namespace FW;
 
 //------------------------------------------------------------------------
@@ -87,7 +90,7 @@ int FW::median3(int low, int high, void* data, SortCompareFunc compareFunc)
     int c = (low + high) >> 1;
     int h = high - 2;
 
-    if (compareFunc(data, h, l)) swap(l, h);
+    if (compareFunc(data, h, l)) std::swap(l, h);
     if (compareFunc(data, c, l)) c = l;
     return (compareFunc(data, h, c)) ? h : c;
 }

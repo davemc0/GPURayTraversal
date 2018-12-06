@@ -29,6 +29,8 @@
 
 #include "gpu/CudaModule.hpp"
 
+#include <cstdio>
+
 //------------------------------------------------------------------------
 
 namespace FW
@@ -37,14 +39,18 @@ namespace FW
     void* managedAlloc(size_t bytes)
     {
         CUdeviceptr ptr;
-        CudaModule::checkError("cuMemAllocManaged(Array)", cuMemAllocManaged(&ptr, bytes, ::CU_MEM_ATTACH_GLOBAL));
+        printf("Allocating %lld bytes of managed memory\n", bytes);
+        CudaModule::checkError("cuMemAllocManaged(managedAlloc)", cuMemAllocManaged(&ptr, bytes, ::CU_MEM_ATTACH_GLOBAL));
+        printf("alloc 0x%016llx\n", (U64)ptr);
 
         return (void*)ptr;
     }
 
     void managedFree(void* ptr)
     {
-        CudaModule::checkError("cuMemFree(Array)", cuMemFree((CUdeviceptr)ptr));
+        printf("free 0x%016llx\n", (U64)ptr);
+        CudaModule::checkError("cuMemFree(0)", cuMemFree((CUdeviceptr)0));
+        CudaModule::checkError("cuMemFree(managedFree)", cuMemFree((CUdeviceptr)ptr));
     }
 
 };

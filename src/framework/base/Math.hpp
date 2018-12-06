@@ -132,7 +132,7 @@ public:
     FW_CUDA_FUNC    void            set         (const T* ptr)              { FW_ASSERT(ptr); T* tp = getPtr(); for (int i = 0; i < L; i++) tp[i] = ptr[i]; }
     FW_CUDA_FUNC    void            setZero     (void)                      { set((T)0); }
 
-    FW_CUDA_FUNC    void            print       (void) const                { const T* tp = getPtr(); printf("["); for (int i = 0; i < L; i++) printf("%g,", (F64)tp[i]); printf("]\n");}
+    FW_CUDA_FUNC    void            print       (void) const                { const T* tp = getPtr(); printf("["); for (int i = 0; i < L; i++) printf("%g,", (F64)tp[i]); printf("]");}
 
     FW_CUDA_FUNC    bool            isZero      (void) const                { const T* tp = getPtr(); for (int i = 0; i < L; i++) if (tp[i] != (T)0) return false; return true; }
     FW_CUDA_FUNC    T               lenSqr      (void) const                { const T* tp = getPtr(); T r = (T)0; for (int i = 0; i < L; i++) r += sqr(tp[i]); return r; }

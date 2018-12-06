@@ -621,7 +621,7 @@ void GLContext::drawImage(const Image& image, const Vec4f& pos, const Vec2f& ali
     Vec2f posHi = posLo.getXY() + posRange;
 
     if (topToBottom)
-        swap(posLo.y, posHi.y);
+        std::swap(posLo.y, posHi.y);
 
     // Draw texture.
 

@@ -43,7 +43,7 @@ BVH::BVH(Scene* scene, const Platform& platform, const BuildParams& params)
     m_platform = platform;
 
     //All BVHNodes are allocated from these things.
-    size_t maxLeafNodes = size_t(scene->getNumTriangles() * 1.5f);
+    size_t maxLeafNodes = size_t(scene->getNumTriangles() * params.maxDuplication);
     // Need to free the backing store sometime.
 
     m_leafBuffer = new Buffer(nullptr, maxLeafNodes * sizeof(LeafNode), 0);
@@ -65,10 +65,17 @@ BVH::BVH(Scene* scene, const Platform& platform, const BuildParams& params)
 
     Ref.getTimer().start();
 
-    //m_root = RandomBVHBuilder(*this, params, false).run();
-    //m_root = SplitBVHBuilder(*this, params).run();
-    //m_root = GPUSplitBVHBuilder(*this, params).run();
-    m_root = BatchSplitBVHBuilder(*this, params).run();
+    // Have one prim per leaf
+    m_platform.setLeafPreferences(1, 1);
+
+    BuildParams sparams = params;
+    // sparams.doMulticore = false; // XXX
+    sparams.splitAlpha = FW_F32_MAX;
+
+    //m_root = RandomBVHBuilder(*this, sparams, false).run();
+    m_root = SplitBVHBuilder(*this, sparams).run();
+    //m_root = GPUSplitBVHBuilder(*this, sparams).run();
+    //m_root = BatchSplitBVHBuilder(*this, sparams).run();
 
     float sah = 0.f;
     m_root->computeSubtreeValues(m_platform, m_root->getArea(), false, false);
@@ -177,8 +184,8 @@ void BVH::traceRecursive(BVHNode* node, Ray& ray, RayResult& result,bool needClo
         if(intersect0 && intersect1)
         if(tspan0[TMIN] > tspan1[TMIN])
         {
-            swap(tspan0,tspan1);
-            swap(child0,child1);
+            std::swap(tspan0,tspan1);
+            std::swap(child0,child1);
         }
 
         if(intersect0)

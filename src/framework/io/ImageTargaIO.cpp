@@ -29,6 +29,9 @@
 #include "gui/Image.hpp"
 #include "io/Stream.hpp"
 
+ // Gives us std::swap, which is declared but not defined in type_traits.h
+#include <utility>
+
 using namespace FW;
 
 //------------------------------------------------------------------------
@@ -152,7 +155,7 @@ Image* FW::importTargaImage(InputStream& stream)
     case 4:
         for (int i = width * height; i > 0; i--)
         {
-            swap(ptr[0], ptr[2]);
+            std::swap(ptr[0], ptr[2]);
             ptr += bpp;
         }
         break;

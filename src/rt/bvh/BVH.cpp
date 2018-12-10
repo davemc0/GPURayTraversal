@@ -73,9 +73,8 @@ BVH::BVH(Scene* scene, const Platform& platform, const BuildParams& params)
     sparams.splitAlpha = FW_F32_MAX;
 
     //m_root = RandomBVHBuilder(*this, sparams, false).run();
-    m_root = SplitBVHBuilder(*this, sparams).run();
-    //m_root = GPUSplitBVHBuilder(*this, sparams).run();
-    //m_root = BatchSplitBVHBuilder(*this, sparams).run();
+    //m_root = SplitBVHBuilder(*this, sparams).run();
+    m_root = BatchSplitBVHBuilder(*this, sparams).run();
 
     float sah = 0.f;
     m_root->computeSubtreeValues(m_platform, m_root->getArea(), false, false);

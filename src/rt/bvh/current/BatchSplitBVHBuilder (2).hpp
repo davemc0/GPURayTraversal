@@ -16,7 +16,6 @@ namespace FW
 
         enum {
             stratBitOffset    = 28,
-            stratNone         = (0x0 << stratBitOffset),
             stratSpatialSplit = (0x4 << stratBitOffset), // Sort spatial split segments to the left
             stratObjectSplit  = (0x8 << stratBitOffset),
             stratLeaf         = (0xc << stratBitOffset), // Sort leaf segments to the right
@@ -58,20 +57,19 @@ namespace FW
         Array<U64>       m_keysArray;   // x2 refKeys, segKeys
 
         // Raw pointers for GPU arrays; initialized in initBBArrays(); all allocated using cudaMallocManaged
-        S32*  m_refRightIdx;    // each ref's distance to end of segment
-        S32*  m_refLeftIdx;     // each ref's distance to start of segment
-        S32*  m_refGamma;       // distance to the split location of a segment that starts or ends here; persists across iterations; OPT: Could I write directly into gamma in the scan?
+        S32*  m_refRightIdx;    // each ref's distance to end of span
+        S32*  m_refLeftIdx;     // each ref's distance to start of span
+        S32*  m_refGamma;       // distance to the split location of a span that starts or ends here; persists across iterations; OPT: Could I write directly into gamma in the scan?
         S32*  m_refSegIdx;      // each ref's index into segment list
+        S32*  m_segIdxBest;     // each segment's best split location
+        S32*  m_segIdxNew;      // each segment's challenger split location
+        F32*  m_segCostBest;    // each segment's best split cost
+        F32*  m_segCostNew;     // each segment's challenger split cost
+        S32*  m_segStratRefIdx; // each segment's split strategy and index of first segment
         AABB* m_refBounds;      // each ref's bounding box; persists across iterations
         AABB* m_refRightBounds; // bounding box of stuff to right of each ref in segment
         AABB* m_refLeftBounds;  // bounding box of stuff to left of each ref in segment
         U64*  m_refKeys;        // each ref's bit trail / segment key; persists across iterations
-
-        S32*  m_segIdxBest;     // each segment's best split location from start of segment
-        S32*  m_segIdxNew;      // each segment's challenger split location from start of segment
-        F32*  m_segCostBest;    // each segment's best split cost
-        F32*  m_segCostNew;     // each segment's challenger split cost
-        S32*  m_segStratRefIdx; // each segment's split strategy and index of first reference in segment
         U64*  m_segKeys;        // each segment's bit trail / segment key
 
         const Vec3i* m_tris;

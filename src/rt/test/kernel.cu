@@ -1,4 +1,4 @@
-#if 0
+#if 1
 
 float testThrust(size_t N)
 {
@@ -7,7 +7,97 @@ float testThrust(size_t N)
 
 #endif
 
-#if 1
+#if 0
+#include <thrust/execution_policy.h>
+#include <thrust/iterator/constant_iterator.h>
+#include <thrust/device_vector.h>
+#include <thrust/reduce.h>
+#include <thrust/for_each.h>
+
+float testThrust(size_t N)
+{
+    thrust::device_vector<int> keys(N), values(N), outKeys(N), outValuesBest(N);
+
+    // Set up the keys...
+    // Initialize outValuesBest...
+
+    while (1) {
+        // Get some values...
+
+        auto OutIt = make_conditional_discard_iterator(outValuesBest.begin(), [] __device__(int newValue, int fromOutValuesBest) { return newValue < fromOutValuesBest; });
+
+        auto outEnd = thrust::reduce_by_key(thrust::device,
+            keys.begin(), keys.end(), values.begin(),
+            outKeys.begin(), OutIt,
+            [] __device__(int ka, int kb) { return ka == kb; },
+            [] __device__(int a, int b) { return min(a, b); });
+
+        size_t nSegments = outEnd.first - outKeys.begin();
+    }
+
+    return 0;
+}
+
+#if 0
+int main()
+{
+    testThrust(1024);
+    return 0;
+}
+#endif
+
+#endif
+
+#if 0
+#include <thrust/execution_policy.h>
+#include <thrust/iterator/constant_iterator.h>
+#include <thrust/device_vector.h>
+#include <thrust/reduce.h>
+#include <thrust/for_each.h>
+
+float testThrust(size_t N)
+{
+    thrust::device_vector<int> keys(N), values(N), outKeys(N), outValues(N), outValuesBest(N);
+
+    // Set up the keys
+    // Initialize outValuesBest
+
+    while (1) {
+        // Get some values
+
+        auto outEnd = thrust::reduce_by_key(thrust::device,
+            keys.begin(), keys.end(), values.begin(),
+            outKeys.begin(), outValues.begin(),
+            [] __device__(auto ka, auto kb) { return ka == kb; },
+            [] __device__(auto a, auto b) { return min(a, b); });
+
+        size_t nSegments = outEnd.first - outKeys.begin();
+
+        auto outValuesp = outValues.begin();
+        auto outValuesBestp = outValuesBest.begin();
+
+        thrust::for_each_n(thrust::device,
+            thrust::counting_iterator<size_t>(0), nSegments, [=] __device__(size_t i) {
+            if (outValuesp[i] < outValuesBestp[i]) {
+                outValuesBestp[i] = outValuesp[i];
+            }
+        });
+    }
+
+    return 0;
+}
+
+#if 0
+int main()
+{
+    testThrust(1024);
+    return 0;
+}
+#endif
+
+#endif
+
+#if 0
 
 #define FW_ENABLE_ASSERT
 

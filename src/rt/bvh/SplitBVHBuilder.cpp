@@ -237,7 +237,7 @@ SplitBVHBuilder::ObjectSplit SplitBVHBuilder::findObjectSplit(const NodeSpec& sp
             leftBounds.grow(refPtr[i - 1].bounds);
             F32 sah = nodeSAH + leftBounds.area() * m_platform.getTriangleCost(i) + m_rightBounds[i - 1].area() * m_platform.getTriangleCost(spec.numRef - i);
 #ifdef ANALYZE_SPLITS
-            printf("OB,%d,%d,%d,%d,%f,%f,%f,%f,%f\n", m_sortDim, i, i, spec.numRef - i, leftBounds.area(), m_rightBounds[i - 1].area(), sah, leftBounds.max()[m_sortDim], m_rightBounds[i - 1].min()[m_sortDim]);
+            printf("OB,%d,%d,%d,%d,%f,%f,%f,%f,%f\n", m_sortDim, i, i, spec.numRef - i, leftBounds.area(), m_refRightBounds[i - 1].area(), sah, leftBounds.max()[m_sortDim], m_refRightBounds[i - 1].min()[m_sortDim]);
 #endif
             F32 tieBreak = sqr((F32)i) + sqr((F32)(spec.numRef - i));
             if (sah < split.sah || (sah == split.sah && tieBreak < bestTieBreak))
@@ -369,7 +369,7 @@ SplitBVHBuilder::SpatialSplit SplitBVHBuilder::doFindSpatialSplit(const NodeSpec
             F32 sah = nodeSAH + leftBounds.area() * m_platform.getTriangleCost(leftNum) + m_rightBounds[i - 1].area() * m_platform.getTriangleCost(rightNum);
 //#define ANALYZE_SPLITS
 #ifdef ANALYZE_SPLITS
-            printf("SP,%d,%d,%d,%d,%f,%f,%f,%f,%f\n", dim, i, leftNum, rightNum, leftBounds.area(), m_rightBounds[i - 1].area(), sah, leftBounds.max()[dim], m_rightBounds[i - 1].min()[dim]);
+            printf("SP,%d,%d,%d,%d,%f,%f,%f,%f,%f\n", dim, i, leftNum, rightNum, leftBounds.area(), m_refRightBounds[i - 1].area(), sah, leftBounds.max()[dim], m_refRightBounds[i - 1].min()[dim]);
 #endif
             if (sah < split.sah)
             {

@@ -198,7 +198,6 @@
     <ClInclude Include="src\rt\bvh\BatchSplitBVHBuilder.hpp" />
     <ClInclude Include="src\rt\bvh\BVH.hpp" />
     <ClInclude Include="src\rt\bvh\BVHNode.hpp" />
-    <ClInclude Include="src\rt\bvh\GPUSplitBVHBuilder.hpp" />
     <ClInclude Include="src\rt\bvh\Platform.hpp" />
     <ClInclude Include="src\rt\bvh\RandomBVHBuilder.hpp" />
     <ClInclude Include="src\rt\bvh\SplitBVHBuilder.hpp" />
@@ -222,8 +221,6 @@
       <FileType>Document</FileType>
     </None>
     <CudaCompile Include="src\rt\bvh\BatchSplitBVHBuilder.cu" />
-    <CudaCompile Include="src\rt\bvh\GPUSplitBVHBuilder.cu">
-    </CudaCompile>
     <CudaCompile Include="src\rt\test\kernel.cu">
     </CudaCompile>
   </ItemGroup>

@@ -30,7 +30,6 @@
 using FW::S32;
 using FW::F32;
 using FW::AABB;
-using thrust::get;
 
 S32   BHD roundToTriangleBatchSize(S32 n) { return ((n + n_triBatchSize - 1) / n_triBatchSize)*n_triBatchSize; }
 S32   BHD roundToNodeBatchSize(S32 n) { return ((n + n_nodeBatchSize - 1) / n_nodeBatchSize)*n_nodeBatchSize; }
@@ -38,6 +37,31 @@ S32   BHD roundToNodeBatchSize(S32 n) { return ((n + n_nodeBatchSize - 1) / n_no
 float BHD getTriangleCost(S32 n) { return roundToTriangleBatchSize(n) * n_SAHTriangleCost; }
 float BHD getNodeCost(S32 n) { return roundToNodeBatchSize(n) * n_SAHNodeCost; }
 float BHD getCost(int numChildNodes, int numTris) { return getNodeCost(numChildNodes) + getTriangleCost(numTris); }
+
+typedef thrust::tuple<AABB, S32, AABB, S32> BIBITuple;
+typedef thrust::tuple<AABB*, S32*, AABB*, S32*> BIBIItTuple;
+typedef thrust::zip_iterator<BIBIItTuple> BIBIZipIt;
+
+typedef thrust::tuple<float, S32, S32> FIITuple;
+
+struct BoundsToCost
+{
+    BHD FIITuple operator()(BIBITuple x) // rightBounds, rightIdx, leftBounds, leftIdx
+    {
+        float rightA = thrust::get<0>(x).area();
+        float leftA = thrust::get<2>(x).area();
+        S32 rightN = thrust::get<1>(x);
+        S32 leftN = thrust::get<3>(x);
+        // This is just SAH of the two children. Need to add nodeSAH for it to be a full SAH. Also it's not scaled by root bounds.
+        F32 childSAH = leftA * getTriangleCost(leftN) + rightA * getTriangleCost(rightN);
+        // Add nodeSAH - OPT: Instead, subtract nodeSAH from leafSAH to avoid computing nodeBounds here
+        AABB nodeBounds = thrust::get<0>(x) + thrust::get<2>(x);
+        F32 nodeSAH = nodeBounds.area() * getNodeCost(2);
+        F32 sah = childSAH + nodeSAH;
+        // F32 sah = childSAH;
+        return thrust::make_tuple(sah, leftN, rightN);
+    }
+};
 
 void FW::BatchSplitBVHBuilder::initBBArrays(S32 maxN, FW::Scene* scene, FW::BVH& bvh)
 {
@@ -85,45 +109,11 @@ void FW::BatchSplitBVHBuilder::freeArrays()
     m_keysArray.reset(0);
 }
 
-typedef thrust::tuple<AABB, AABB, S32> BBITuple; // rightBounds, leftBounds, i
-typedef thrust::tuple<float, S32, S32> FIITuple; // Cost, leftN, i
-
-struct BoundsToCost
-{
-    S32* refSegIdx;
-    S32* segStratRefIdx;
-    S32 N, nSegments;
-
-    BoundsToCost(S32* r, S32* s, S32 n, S32 ns) : refSegIdx(r), segStratRefIdx(s), N(n), nSegments(ns) {}
-
-    BHD FIITuple operator()(BBITuple x)
-    {
-        float rightA = get<0>(x).area();
-        float leftA = get<1>(x).area();
-        S32 i = get<2>(x);
-        S32 s = refSegIdx[i]; // Segment index in output arrays
-        S32 b = FW::BatchSplitBVHBuilder::stratNumMask & segStratRefIdx[s]; // Ref index of segment start
-        S32 e = (s < (nSegments - 1) ? (FW::BatchSplitBVHBuilder::stratNumMask & segStratRefIdx[s + 1]) : N) - 1;
-
-        S32 leftN = i - b;
-        S32 rightN = e - i;
-
-        // This is just SAH of the two children. Need to add nodeSAH for it to be a full SAH. Also it's not scaled by root bounds.
-        F32 childSAH = leftA * getTriangleCost(leftN) + rightA * getTriangleCost(rightN);
-        // Add nodeSAH - OPT: Instead, subtract nodeSAH from leafSAH to avoid computing nodeBounds here
-        AABB nodeBounds = get<0>(x) + get<1>(x);
-        F32 nodeSAH = nodeBounds.area() * getNodeCost(2);
-        F32 sah = childSAH + nodeSAH;
-        // F32 sah = childSAH;
-        return thrust::make_tuple(sah, leftN, i);
-    }
-};
-
 void FW::BatchSplitBVHBuilder::doGeneration(S32& N, S32& nSegments, S32 level)
 {
     S32*  refTriIdx = m_refTriIdx;
-    S32*  discard = m_refRightIdx; // XXX
-    S32*  discard2 = m_refLeftIdx;
+    S32*  refRightIdx = m_refRightIdx;
+    S32*  refLeftIdx = m_refLeftIdx;
     S32*  refGamma = m_refGamma;
     S32*  refSegIdx = m_refSegIdx;
     S32*  segIdxBest = m_segIdxBest;
@@ -137,7 +127,7 @@ void FW::BatchSplitBVHBuilder::doGeneration(S32& N, S32& nSegments, S32 level)
     U64*  refKeys = m_refKeys;
     U64*  segKeys = m_segKeys;
 
-    typedef thrust::tuple<S32, S32, AABB, U64> TGBKTuple;
+    typedef thrust::tuple<S32, S32, AABB, U64>    TGBKTuple;
     typedef thrust::tuple<S32*, S32*, AABB*, U64*> TGBKItTuple;
     typedef thrust::zip_iterator<TGBKItTuple> TGBKZipIt;
     TGBKZipIt refsTGBK(thrust::make_tuple(refTriIdx, refGamma, refBounds, refKeys));
@@ -146,27 +136,15 @@ void FW::BatchSplitBVHBuilder::doGeneration(S32& N, S32& nSegments, S32 level)
 
     // Remove degenerates.
     // OPT: For Sweep builder move this out of the loop. If so, for speed, change it to not be a stable_partition. Split builder makes new refs.
-    // OPT: Could make this part of sort predicate and use custom iterator to count how many are rejected or an atomic
+    // OPT: Could make this part of sort predicate and use custom iterator to count how many are rejected
     auto mid = thrust::stable_partition(thrust::device, refsTGBK, refsTGBK + N, [] BHD(const TGBKTuple r) {
-        Vec3f size = get<2>(r).max() - get<2>(r).min();
+        Vec3f size = thrust::get<2>(r).max() - thrust::get<2>(r).min();
         return !(min(size) < 0.0f || sum(size) == max(size));
     });
 
-    S32 newN = get<0>(mid.get_iterator_tuple()) - refTriIdx;
+    S32 newN = thrust::get<0>(mid.get_iterator_tuple()) - refTriIdx;
     if (newN != N) printf("%d => %d\n", N, newN);
     N = newN;
-
-    // Compute refSegIdx
-    thrust::transform_inclusive_scan(thrust::device,
-        thrust::make_counting_iterator((S32)0), thrust::make_counting_iterator((S32)N), refSegIdx,
-        [refKeys] BHD(S32 i) { return (i == 0 || refKeys[i] == refKeys[i - 1]) ? 0 : 1; },
-        [] BHD(S32 a, S32 b) { return a + b; });
-
-    // Compute segStratRefIdx
-    thrust::reduce_by_key(thrust::device,
-        refKeys, refKeys + N, thrust::make_counting_iterator((S32)0),
-        segKeys, segStratRefIdx,
-        [] BHD(U64 ka, U64 kb) { return ka == kb; }, [] BHD(S32 a, S32 b) { return stratNone | min(a, b); });
 
     // Try object split in each dimension
     for (int dim = 0; dim < 3; dim++) {
@@ -174,64 +152,106 @@ void FW::BatchSplitBVHBuilder::doGeneration(S32& N, S32& nSegments, S32 level)
         // Sort in given dimension
         thrust::sort(thrust::device,
             refsTGBK, refsTGBK + N,
-            [dim, segStratRefIdx] BHD(TGBKTuple a, TGBKTuple b) {
-            // S32 sa = get<4>(a); // Segment index of each reference
-            // S32 sb = get<4>(b);
-
-            S32 la = 0; // stratMask & segStratRefIdx[sa]; // sort by strategy
-            S32 lb = 0; // stratMask & segStratRefIdx[sb];
-            F32 ca = get<2>(a).min()[dim] + get<2>(a).max()[dim]; // centroid in dim
-            F32 cb = get<2>(b).min()[dim] + get<2>(b).max()[dim];
-
-            return (la < lb) || (la == lb && ((get<3>(a) < get<3>(b)) || (get<3>(a) == get<3>(b) && ((ca < cb || (ca == cb && get<0>(a) < get<0>(b)))))));
+            [dim] BHD(TGBKTuple a, TGBKTuple b) {
+            F32 ca = thrust::get<2>(a).min()[dim] + thrust::get<2>(a).max()[dim];
+            F32 cb = thrust::get<2>(b).min()[dim] + thrust::get<2>(b).max()[dim];
+            U64 ka = thrust::get<3>(a);
+            U64 kb = thrust::get<3>(b);
+            return (ka < kb) || (ka == kb && (ca < cb || (ca == cb && thrust::get<0>(a) < thrust::get<0>(b))));
         });
 
-        // Sweep right to left and determine bounds
+        // Sweep right to left and determine bounds; refRightIdx is offset from right edge of segment
         // refLeftBounds[i] and refRightBounds[i] contain the two AABBs for splitting at i.
 
-        // OPT: Use transform_output iterator to just store area instead of whole AABB
+        typedef thrust::tuple<AABB, S32> BITuple;
+        typedef thrust::tuple<AABB*, S32*> BIItTuple;
+        typedef thrust::zip_iterator<BIItTuple> BIZipIt;
+
+        auto BIRevIt(thrust::make_zip_iterator(thrust::make_tuple(thrust::make_reverse_iterator(refBounds + N), OneIt)));
+        auto refRightOut(thrust::make_zip_iterator(thrust::make_tuple(thrust::make_reverse_iterator(refRightBounds + N), thrust::make_reverse_iterator(refRightIdx + N))));
+
+        // OPT: What if I combined the two scans and pulled from both ends of segment at same time?
         thrust::inclusive_scan_by_key(thrust::device,
             thrust::make_reverse_iterator(refKeys + N), thrust::make_reverse_iterator(refKeys),
-            thrust::make_reverse_iterator(refBounds + N), thrust::make_reverse_iterator(refRightBounds + N),
+            BIRevIt,
+            refRightOut,
             [] BHD(U64 ka, U64 kb) { return ka == kb; },
-            [] BHD(AABB a, AABB b) { return a + b; });
+            [] BHD(BITuple a, BITuple b) { return thrust::make_tuple(thrust::get<0>(a) + thrust::get<0>(b), thrust::get<1>(a) + thrust::get<1>(b)); });
 
-        // Sweep left to right and determine bounds
+        // Sweep left to right and determine bounds; refLeftIdx is offset from left edge of segment
+        BIZipIt refLeftOut(thrust::make_tuple(refLeftBounds, refLeftIdx));
+
+        // OPT: Don't need to write leftIdx and rightIdx all three times.
         thrust::exclusive_scan_by_key(thrust::device,
-            refKeys, refKeys + N, refBounds, refLeftBounds, AABB(),
+            refKeys, refKeys + N,
+            thrust::make_zip_iterator(thrust::make_tuple(refBounds, OneIt)),
+            refLeftOut,
+            thrust::make_tuple(AABB(), (S32)0),
             [] BHD(U64 ka, U64 kb) { return ka == kb; },
-            [] BHD(AABB a, AABB b) { return a + b; });
+            [] BHD(BITuple a, BITuple b) { return thrust::make_tuple(thrust::get<0>(a) + thrust::get<0>(b), thrust::get<1>(a) + thrust::get<1>(b)); });
 
         // OPT: Store a segment's full AABB into its final BVHNode, since we know its location now
 
         // Select lowest SAH.
-        auto BoundsIt(thrust::make_zip_iterator(thrust::make_tuple(refRightBounds, refLeftBounds, thrust::make_counting_iterator((S32)0))));
+        BIBIZipIt BoundsIt(thrust::make_tuple(refRightBounds, refRightIdx, refLeftBounds, refLeftIdx));
+        typedef thrust::discard_iterator<S32> IDisIt;
+        IDisIt Dis;
 
         // OPT: Only need to write the keys out once. Could use discard_iterator on the other two dimensions.
         // OPT: refSegIdx is unneeded; should use a discard_iterator to get rid of refRightIdx output, but was getting errors.
-        auto segValues = thrust::make_zip_iterator(thrust::make_tuple(dim == 0 ? segCostBest : segCostNew, dim == 0 ? segIdxBest : segIdxNew, discard)); // FII
+        auto segValues = thrust::make_zip_iterator(thrust::make_tuple(dim == 0 ? segCostBest : segCostNew, dim == 0 ? segIdxBest : segIdxNew, refSegIdx));
 
-        auto segEnd = thrust::reduce_by_key(thrust::device,
-            refKeys, refKeys + N, thrust::make_transform_iterator(BoundsIt, BoundsToCost(refSegIdx, segStratRefIdx, N, nSegments)),
+        auto outEnd = thrust::reduce_by_key(thrust::device,
+            refKeys, refKeys + N, thrust::make_transform_iterator(BoundsIt, BoundsToCost()),
             segKeys, segValues, // OPT: I don't use segKeys. Should use discard_iterator, but need nSegments.
             [] BHD(U64 ka, U64 kb) { return ka == kb; },
-            [] BHD(FIITuple a, FIITuple b) { return get<0>(a) < get<0>(b) ? a :
-                (get<0>(a) > get<0>(b) ? b :
-                (abs(get<1>(a) - get<2>(a)) < abs(get<1>(b) - get<2>(b)) ? a : b)); });
+            [] BHD(FIITuple a, FIITuple b) { return thrust::get<0>(a) < thrust::get<0>(b) ? a :
+                (thrust::get<0>(a) > thrust::get<0>(b) ? b :
+                (abs(thrust::get<1>(a) - thrust::get<2>(a)) < abs(thrust::get<1>(b) - thrust::get<2>(b)) ? a : b)); });
 
-        nSegments = segEnd.first - segKeys;
+        nSegments = outEnd.first - segKeys;
         U64 demoK = segKeys[0];
         S32 thisStrategy = stratObjectSplit | (dim << stratBitOffset);
 
-        // Update best strategy
-        // OPT: Would rather do this as a conditional_iterator as part of reduce_by_key.
-        thrust::for_each_n(thrust::device, thrust::counting_iterator<S32>((S32)0), nSegments, [=] BHD(S32 i) {
-            if (segCostNew[i] < segCostBest[i]) {
-                segCostBest[i] = segCostNew[i];
-                segIdxBest[i] = segIdxNew[i];
-                segStratRefIdx[i] = thisStrategy | (stratNumMask & segStratRefIdx[i]);
-            }
-        });
+        if (dim == 0) {
+            // Compute the count
+            auto IIZipIt = thrust::make_zip_iterator(thrust::make_tuple(segIdxBest, refSegIdx)); // These currently contain left and right counts per segment
+
+            thrust::transform_exclusive_scan(thrust::device,
+                IIZipIt, IIZipIt + nSegments,
+                segStratRefIdx, [] BHD(auto v) { return thrust::get<0>(v) + thrust::get<1>(v); },
+                (S32)thisStrategy, [thisStrategy] BHD(S32 a, S32 b) { return thisStrategy | (stratNumMask & (a + b)); });
+
+            // Compute the SAH of making each segment a leaf
+            S32 maxLeafSize = m_platform.getMaxLeafSize(), minLeafSize = m_platform.getMinLeafSize();
+            thrust::for_each_n(thrust::device, thrust::counting_iterator<S32>((S32)0), nSegments, [=] BHD(S32 i) {
+                S32 ind = stratNumMask & segStratRefIdx[i];
+                S32 leafN = segIdxBest[i] + refSegIdx[i];
+                F32 leafSAH = FW_F32_MAX;
+                if (leafN <= minLeafSize)
+                    leafSAH = FW_F32_MIN;
+                else if (leafN <= maxLeafSize) {
+                    AABB bounds = refRightBounds[ind];
+                    leafSAH = bounds.area() * getTriangleCost(leafN);
+                }
+
+                if (leafSAH < segCostBest[i]) {
+                    segCostBest[i] = leafSAH;
+                    segIdxBest[i] = FW_S32_MAX;
+                    segStratRefIdx[i] = stratLeaf | ind;
+                }
+            });
+        }
+        else {
+            // OPT: Would rather do this as a conditional_iterator as part of reduce_by_key.
+            thrust::for_each_n(thrust::device, thrust::counting_iterator<S32>((S32)0), nSegments, [=] BHD(S32 i) {
+                if (segCostNew[i] < segCostBest[i]) {
+                    segCostBest[i] = segCostNew[i];
+                    segIdxBest[i] = segIdxNew[i];
+                    segStratRefIdx[i] = thisStrategy | (stratNumMask & segStratRefIdx[i]);
+                }
+            });
+        }
 
         printf("level=%d dim=%d nSegments=%d keys=%016llx\n", level, dim, nSegments, demoK);
         if (level > -30) {
@@ -242,33 +262,18 @@ void FW::BatchSplitBVHBuilder::doGeneration(S32& N, S32& nSegments, S32 level)
         }
     }
 
-    // Compute each segment's leaf SAH and update best strategy
-    S32 maxLeafSize = m_platform.getMaxLeafSize(), minLeafSize = m_platform.getMinLeafSize();
-    thrust::for_each_n(thrust::device, thrust::counting_iterator<S32>((S32)0), nSegments, [=] BHD(S32 s) {
-        S32 ind = stratNumMask & segStratRefIdx[s];
-        S32 leafN = (s < (nSegments - 1) ? (stratNumMask & segStratRefIdx[s + 1]) : N) - 1; // OPT: Add a fake segment whose index is N to simplify this
-
-        F32 leafSAH = FW_F32_MAX;
-        if (leafN <= minLeafSize)
-            leafSAH = FW_F32_MIN;
-        else if (leafN <= maxLeafSize) {
-            AABB& bounds = refRightBounds[ind];
-            leafSAH = bounds.area() * getTriangleCost(leafN);
-        }
-
-        if (leafSAH < segCostBest[s]) {
-            segCostBest[s] = leafSAH;
-            segIdxBest[s] = FW_S32_MAX;
-            segStratRefIdx[s] = stratLeaf | ind;
-        }
-    });
-
     // Count how many refs want each kind of strategy to give me indices to them after they're sorted
     // thrust::inclusive_scan with an output tuple with a value per strategy. Could fold it into the for_each_n and use atomic counters?
 
+    // Make refSegIdx be the per-reference index into out*
+    thrust::transform_inclusive_scan(thrust::device,
+        thrust::make_counting_iterator((S32)0), thrust::make_counting_iterator((S32)N), refSegIdx,
+        [refKeys] BHD(S32 i) { return (i == 0 || refKeys[i] == refKeys[i - 1]) ? 0 : 1; },
+        [] BHD(S32 a, S32 b) { return a + b; });
+
     cudaDeviceSynchronize(); // XXX
     for (int i = 0; i < N; i++)
-        printf("i=%d refSegIdx[i]=%d refKeys[i]=%016llx\n", i, refSegIdx[i], refKeys[i]);
+        printf("i=%d refSegIdx[i]=%d refLeftIdx[i]=%d refKeys[i]=%016llx\n", i, refSegIdx[i], refLeftIdx[i], refKeys[i]);
 
     // Sort each segment by its best dimension
     typedef thrust::tuple<S32, S32, AABB, U64, S32>    TGBKITuple;
@@ -278,24 +283,20 @@ void FW::BatchSplitBVHBuilder::doGeneration(S32& N, S32& nSegments, S32 level)
     // XXX Need to make sure that for multi-reference leaves the right ref sorts to the end to make gamma work.
 
     // OPT: Sort by strat to give good spans for doing separate algorithms in next pass; maybe lets us keep a sorted array per dim
-    // OPT: Could store strat in 3 msbs of segKeys instead of segRefIdx
     thrust::sort(thrust::device,
         refsTGBKI, refsTGBKI + N, [segStratRefIdx] BHD(TGBKITuple a, TGBKITuple b) {
-        S32 sa = get<4>(a); // Segment index of each reference
-        S32 sb = get<4>(b);
+        S32 sa = thrust::get<4>(a); // Segment index of each reference
+        S32 sb = thrust::get<4>(b);
 
         int dim = (stratDimMask & segStratRefIdx[sa]) >> stratBitOffset;
-        S32 la = 0; // stratMask & segStratRefIdx[sa]; // sort by strategy
-        S32 lb = 0; // stratMask & segStratRefIdx[sb];
-        F32 ca = get<2>(a).min()[dim] + get<2>(a).max()[dim]; // centroid in dim
-        F32 cb = get<2>(b).min()[dim] + get<2>(b).max()[dim];
+        S32 la = segStratRefIdx[sa]; // sort by strategy and segment index in reference arrays (only strategy is relevant so far)
+        S32 lb = segStratRefIdx[sb];
 
-        return (la < lb) || (la == lb && ((get<3>(a) < get<3>(b)) || (get<3>(a) == get<3>(b) && ((ca < cb || (ca == cb && get<0>(a) < get<0>(b)))))));
+        F32 ca = thrust::get<2>(a).min()[dim] + thrust::get<2>(a).max()[dim]; // centroid in dim
+        F32 cb = thrust::get<2>(b).min()[dim] + thrust::get<2>(b).max()[dim];
+
+        return (la < lb) || (la == lb && (ca < cb || (ca == cb && thrust::get<0>(a) < thrust::get<0>(b))));
     });
-
-    cudaDeviceSynchronize(); // XXX
-    for (int i = 0; i < N; i++)
-        printf("post-sort i=%d refSegIdx[i]=%d refKeys[i]=%016llx\n", i, refSegIdx[i], refKeys[i]);
 
     // Update Nactive here so only the active ones get their keys updated
 
@@ -306,19 +307,16 @@ void FW::BatchSplitBVHBuilder::doGeneration(S32& N, S32& nSegments, S32 level)
     thrust::for_each(thrust::device, thrust::make_counting_iterator((S32)0), thrust::make_counting_iterator((S32)N),
         [=] BHD(S32 i) {
         S32 s = refSegIdx[i]; // Segment index in output arrays
-        S32 b = stratNumMask & segStratRefIdx[s]; // Ref index of segment start
-        S32 e = (s < (nSegments - 1) ? (stratNumMask & segStratRefIdx[s + 1]) : N) - 1; // OPT: Add a fake segment whose index is N to simplify this
-        if (i == 2) printf("i=%d s=%d b=%d e=%d\n", i, s, b, e);
 
-        if (i - b >= segIdxBest[s])
+        if (refLeftIdx[i] >= segIdxBest[s])
             // My offset within segment is to the right of the split index
             refKeys[i] = refKeys[i] | 1ull << (U64)(63 - level);
 
         // If I'm at the start or end of the segment and the gamma slot hasn't been claimed yet so I record the relative split location.
-        if (i == b && refGamma[i] == FW_S32_MIN)
+        if (refLeftIdx[i] == 0 && refGamma[i] == FW_S32_MIN)
             refGamma[i] = segIdxBest[s];
-        if (i == e && refGamma[i] == FW_S32_MIN)
-            refGamma[i] = segIdxBest[s] - (e - b); // The (negative) offset from i to the relative split location.
+        if (refRightIdx[i] == 1 && refGamma[i] == FW_S32_MIN)
+            refGamma[i] = segIdxBest[s] - refLeftIdx[i]; // The (negative) offset from i to the relative split location.
     });
 
     // printf("Done with generation %d.\n", level);
@@ -387,8 +385,6 @@ FW::BVHNode* FW::BatchSplitBVHBuilder::batchRun(BatchSplitBVHBuilder& BS, AABB& 
     S32 N = BS.m_bvh.getScene()->getNumTriangles();
 
     S32 maxN = (S32)(BS.m_params.maxDuplication * (float)N);
-
-    N = 32; // XXX
 
     FW_ASSERT(BS.m_platform.getTriangleBatchSize() == n_triBatchSize);
     FW_ASSERT(BS.m_platform.getNodeBatchSize() == n_nodeBatchSize);

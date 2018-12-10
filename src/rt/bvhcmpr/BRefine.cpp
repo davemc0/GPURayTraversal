@@ -613,3 +613,7 @@ namespace FW
 // Once we know the best place for a node is inside its modified treelet we could do a TRBVH on that treelet.
 
 // TRBVH puts lots of work into optimizing a whole treelet, then throws most of the work away as it steps up to the next level of the tree.
+
+// SBVH alpha parameter claims to avoid blowing up splits, but this isn't true. It can still blow up. Alpha just dampens it to only blow up when useful to the SAH. Still no regard for memory.
+// Mine provides a breadth-first build with a hard memory limit, so splits happen where they theoretically matter the most.
+

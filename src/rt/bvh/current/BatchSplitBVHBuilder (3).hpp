@@ -16,7 +16,6 @@ namespace FW
 
         enum {
             stratBitOffset    = 28,
-            stratNone         = (0x0 << stratBitOffset),
             stratSpatialSplit = (0x4 << stratBitOffset), // Sort spatial split segments to the left
             stratObjectSplit  = (0x8 << stratBitOffset),
             stratLeaf         = (0xc << stratBitOffset), // Sort leaf segments to the right

@@ -41,7 +41,7 @@ BVH::BVH(Scene* scene, const Platform& platform, const BuildParams& params)
     FW_ASSERT(scene);
     m_scene = scene;
     m_platform = platform;
-
+    printf("0x%08x\n", ~0x5a5a);
     //All BVHNodes are allocated from these things.
     size_t maxLeafNodes = size_t(scene->getNumTriangles() * params.maxDuplication);
     // Need to free the backing store sometime.

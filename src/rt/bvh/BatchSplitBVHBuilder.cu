@@ -115,6 +115,8 @@ struct BoundsToCost
         F32 nodeSAH = nodeBounds.area() * getNodeCost(2);
         F32 sah = childSAH + nodeSAH;
         // F32 sah = childSAH;
+        //printf("i=%d s=%d b=%d e=%d sah=%f leftN=%d\n", i, s, b, e, sah, leftN);
+
         return thrust::make_tuple(sah, leftN, i);
     }
 };
@@ -153,7 +155,7 @@ void FW::BatchSplitBVHBuilder::doGeneration(S32& N, S32& nSegments, S32 level)
     });
 
     S32 newN = get<0>(mid.get_iterator_tuple()) - refTriIdx;
-    if (newN != N) printf("%d => %d\n", N, newN);
+    if (newN != N) printf("Removing degenerates: %d => %d\n", N, newN);
     N = newN;
 
     // Compute refSegIdx
@@ -208,7 +210,7 @@ void FW::BatchSplitBVHBuilder::doGeneration(S32& N, S32& nSegments, S32 level)
         auto BoundsIt(thrust::make_zip_iterator(thrust::make_tuple(refRightBounds, refLeftBounds, thrust::make_counting_iterator((S32)0))));
 
         // OPT: Only need to write the keys out once. Could use discard_iterator on the other two dimensions.
-        // OPT: refSegIdx is unneeded; should use a discard_iterator to get rid of refRightIdx output, but was getting errors.
+        // OPT: discard is unneeded; should use a discard_iterator to get rid of discard output, but was getting errors.
         auto segValues = thrust::make_zip_iterator(thrust::make_tuple(dim == 0 ? segCostBest : segCostNew, dim == 0 ? segIdxBest : segIdxNew, discard)); // FII
 
         auto segEnd = thrust::reduce_by_key(thrust::device,
@@ -223,9 +225,19 @@ void FW::BatchSplitBVHBuilder::doGeneration(S32& N, S32& nSegments, S32 level)
         U64 demoK = segKeys[0];
         S32 thisStrategy = stratObjectSplit | (dim << stratBitOffset);
 
+        printf("Alevel=%d dim=%d nSegments=%d segKeys[0]=%016llx\n", level, dim, nSegments, demoK);
+        if (level > 90) {
+            cudaDeviceSynchronize(); // XXX
+            for (int s = 0; s < nSegments; s++) {
+                printf("As=%d Strat=0x%x RefIdx=%d IdxBest=%d CostBest=%f IdxNew=%d CostNew=%f Keys=%016llx\n", s, (U32)segStratRefIdx[s] >> stratBitOffset,
+                    stratNumMask & segStratRefIdx[s], segIdxBest[s], segCostBest[s], segIdxNew[s], segCostNew[s], segKeys[s]);
+            }
+        }
+
         // Update best strategy
         // OPT: Would rather do this as a conditional_iterator as part of reduce_by_key.
-        thrust::for_each_n(thrust::device, thrust::counting_iterator<S32>((S32)0), nSegments, [=] BHD(S32 i) {
+        if (dim > 0)
+            thrust::for_each_n(thrust::device, thrust::counting_iterator<S32>((S32)0), nSegments, [=] BHD(S32 i) {
             if (segCostNew[i] < segCostBest[i]) {
                 segCostBest[i] = segCostNew[i];
                 segIdxBest[i] = segIdxNew[i];
@@ -233,11 +245,12 @@ void FW::BatchSplitBVHBuilder::doGeneration(S32& N, S32& nSegments, S32 level)
             }
         });
 
-        printf("level=%d dim=%d nSegments=%d keys=%016llx\n", level, dim, nSegments, demoK);
-        if (level > -30) {
+        printf("Blevel=%d dim=%d nSegments=%d segKeys[0]=%016llx\n", level, dim, nSegments, demoK);
+        if (level > 90) {
             cudaDeviceSynchronize(); // XXX
-            for (int i = 0; i < nSegments; i++) {
-                printf("%d 0x%x %d %d %f %016llx\n", i, (U32)segStratRefIdx[i] >> stratBitOffset, stratNumMask & segStratRefIdx[i], segIdxBest[i], segCostBest[i], segKeys[i]);
+            for (int s = 0; s < nSegments; s++) {
+                printf("Bs=%d Strat=0x%x RefIdx=%d IdxBest=%d CostBest=%f IdxNew=%d CostNew=%f Keys=%016llx\n", s, (U32)segStratRefIdx[s] >> stratBitOffset,
+                    stratNumMask & segStratRefIdx[s], segIdxBest[s], segCostBest[s], segIdxNew[s], segCostNew[s], segKeys[s]);
             }
         }
     }
@@ -263,12 +276,20 @@ void FW::BatchSplitBVHBuilder::doGeneration(S32& N, S32& nSegments, S32 level)
         }
     });
 
+    if (level > 90) {
+        cudaDeviceSynchronize(); // XXX
+        for (int s = 0; s < nSegments; s++) {
+            printf("Cs=%d Strat=0x%x RefIdx=%d IdxBest=%d CostBest=%f IdxNew=%d CostNew=%f Keys=%016llx\n", s, (U32)segStratRefIdx[s] >> stratBitOffset,
+                stratNumMask & segStratRefIdx[s], segIdxBest[s], segCostBest[s], segIdxNew[s], segCostNew[s], segKeys[s]);
+        }
+
+        cudaDeviceSynchronize(); // XXX
+        for (int i = 0; i < N; i++)
+            printf("Ci=%d refSegIdx[i]=%d refKeys[i]=%016llx\n", i, refSegIdx[i], refKeys[i]);
+    }
+
     // Count how many refs want each kind of strategy to give me indices to them after they're sorted
     // thrust::inclusive_scan with an output tuple with a value per strategy. Could fold it into the for_each_n and use atomic counters?
-
-    cudaDeviceSynchronize(); // XXX
-    for (int i = 0; i < N; i++)
-        printf("i=%d refSegIdx[i]=%d refKeys[i]=%016llx\n", i, refSegIdx[i], refKeys[i]);
 
     // Sort each segment by its best dimension
     typedef thrust::tuple<S32, S32, AABB, U64, S32>    TGBKITuple;
@@ -294,8 +315,8 @@ void FW::BatchSplitBVHBuilder::doGeneration(S32& N, S32& nSegments, S32 level)
     });
 
     cudaDeviceSynchronize(); // XXX
-    for (int i = 0; i < N; i++)
-        printf("post-sort i=%d refSegIdx[i]=%d refKeys[i]=%016llx\n", i, refSegIdx[i], refKeys[i]);
+    //for (int i = 0; i < N; i++)
+    //    printf("post-sort i=%d refSegIdx[i]=%d refKeys[i]=%016llx\n", i, refSegIdx[i], refKeys[i]);
 
     // Update Nactive here so only the active ones get their keys updated
 
@@ -308,7 +329,7 @@ void FW::BatchSplitBVHBuilder::doGeneration(S32& N, S32& nSegments, S32 level)
         S32 s = refSegIdx[i]; // Segment index in output arrays
         S32 b = stratNumMask & segStratRefIdx[s]; // Ref index of segment start
         S32 e = (s < (nSegments - 1) ? (stratNumMask & segStratRefIdx[s + 1]) : N) - 1; // OPT: Add a fake segment whose index is N to simplify this
-        if (i == 2) printf("i=%d s=%d b=%d e=%d\n", i, s, b, e);
+        //printf("i=%d s=%d b=%d e=%d segIdxBest[s]=%d\n", i, s, b, e, segIdxBest[s]);
 
         if (i - b >= segIdxBest[s])
             // My offset within segment is to the right of the split index
@@ -321,7 +342,7 @@ void FW::BatchSplitBVHBuilder::doGeneration(S32& N, S32& nSegments, S32 level)
             refGamma[i] = segIdxBest[s] - (e - b); // The (negative) offset from i to the relative split location.
     });
 
-    // printf("Done with generation %d.\n", level);
+    printf("Done with generation %d.\n", level);
 }
 
 FW::BVHNode* FW::BatchSplitBVHBuilder::makeNodes(S32 N)

@@ -604,7 +604,7 @@ extern float BenchyMcBenchfaceS(size_t N);
 extern float BenchyMcBenchfaceG(size_t N);
 extern float BenchyBench2(size_t N);
 
-const size_t N = 1 << 16;
+const size_t N = 1 << 5;
 
 void FW::runTest()
 {

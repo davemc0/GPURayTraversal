@@ -1,39 +1,54 @@
-#if 1
+#if 0
+#include <thrust/for_each.h>
+#include "bvh/conditional_output_iterator.h"
 
 float testThrust(size_t N)
 {
-    return float(N);
+
 }
 
 #endif
 
-#if 0
+#if 1
 #include <thrust/execution_policy.h>
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/device_vector.h>
 #include <thrust/reduce.h>
 #include <thrust/for_each.h>
+#include "bvh/conditional_output_iterator.h"
+
+#define BHD __host__ __device__
 
 float testThrust(size_t N)
 {
     thrust::device_vector<int> keys(N), values(N), outKeys(N), outValuesBest(N);
+    thrust::fill(keys.begin(), keys.begin() + N, 0);
+    thrust::fill(keys.begin(), keys.begin() + N / 2, 1);
+    thrust::fill(values.begin(), values.begin() + N, 5);
+    thrust::fill(outValuesBest.begin(), outValuesBest.begin() + N, 9);
+    thrust::fill(outValuesBest.begin(), outValuesBest.begin() + 1, 2);
 
-    // Set up the keys...
-    // Initialize outValuesBest...
+    //thrust::for_each_n(keys.begin(), N, [=] BHD(int& x) {x = 0;});
+    //thrust::transform(thrust::make_counting_iterator((int)0), thrust::make_counting_iterator((int)8), keys.begin(), [=] BHD(int& x) { keys[x] = x < 16; });
+    //thrust::for_each_n(thrust::make_counting_iterator((int)N), N,
 
-    while (1) {
-        // Get some values...
+    for (int i = 0; i < N; i++) { int j = keys[i]; printf("%d ", j); } printf("\n");
+    for (int i = 0; i < N; i++) { int j = values[i]; printf("%d ", j); } printf("\n");
 
-        auto OutIt = make_conditional_discard_iterator(outValuesBest.begin(), [] __device__(int newValue, int fromOutValuesBest) { return newValue < fromOutValuesBest; });
+#if 1
+    auto OutIt = make_conditional_output_iterator(outValuesBest.begin(), thrust::less<int>()); //  [] BHD(int newValue, int fromOutValuesBest) { return newValue < fromOutValuesBest; });
+    // auto OutIt = outValuesBest.begin();
 
-        auto outEnd = thrust::reduce_by_key(thrust::device,
-            keys.begin(), keys.end(), values.begin(),
-            outKeys.begin(), OutIt,
-            [] __device__(int ka, int kb) { return ka == kb; },
-            [] __device__(int a, int b) { return min(a, b); });
+    auto outEnd = thrust::reduce_by_key(thrust::device,
+        keys.begin(), keys.end(), values.begin(),
+        outKeys.begin(), OutIt,
+        [] BHD(int ka, int kb) { return ka == kb; },
+        [] BHD(int a, int b) { return min(a, b); });
 
-        size_t nSegments = outEnd.first - outKeys.begin();
-    }
+    size_t nSegments = outEnd.first - outKeys.begin();
+    printf("%lld\n", nSegments);
+    for (int i = 0; i < nSegments; i++) { int j = outValuesBest[i]; printf("%d ", j); } printf("\n");
+#endif
 
     return 0;
 }
@@ -41,7 +56,7 @@ float testThrust(size_t N)
 #if 0
 int main()
 {
-    testThrust(1024);
+    testThrust(32);
     return 0;
 }
 #endif

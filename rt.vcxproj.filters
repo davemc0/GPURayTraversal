@@ -139,6 +139,9 @@
     <ClInclude Include="src\rt\bvh\BatchSplitBVHBuilder.hpp">
       <Filter>bvh</Filter>
     </ClInclude>
+    <ClInclude Include="src\rt\bvh\conditional_output_iterator.h">
+      <Filter>bvh</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CustomBuildStep Include="src\rt\cuda\RendererKernels.cu">
@@ -169,6 +172,9 @@
     </None>
     <None Include="src\rt\kernels\stats_kepler_dynamic_fetch.cu">
       <Filter>kernels</Filter>
+    </None>
+    <None Include="src\rt\bvh\conditional_output_iterator.inl">
+      <Filter>bvh</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>

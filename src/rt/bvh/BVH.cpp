@@ -70,15 +70,17 @@ BVH::BVH(Scene* scene, const Platform& platform, const BuildParams& params)
 
     BuildParams sparams = params;
     // sparams.doMulticore = false; // XXX
-    sparams.splitAlpha = FW_F32_MAX;
+    // sparams.splitAlpha = FW_F32_MAX;
 
     //m_root = RandomBVHBuilder(*this, sparams, false).run();
-    //m_root = SplitBVHBuilder(*this, sparams).run();
-    m_root = BatchSplitBVHBuilder(*this, sparams).run();
+    m_root = SplitBVHBuilder(*this, sparams).run();
+    //m_root = BatchSplitBVHBuilder(*this, sparams).run();
 
     float sah = 0.f;
     m_root->computeSubtreeValues(m_platform, m_root->getArea(), false, false);
     sah = m_root->m_sah;
+
+    Ref.run();
 
     if (params.enablePrints) {
         printf("BVH: Scene bounds: (%.1f,%.1f,%.1f) - (%.1f,%.1f,%.1f) ", m_root->m_bounds.min().x, m_root->m_bounds.min().y, m_root->m_bounds.min().z,

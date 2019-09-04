@@ -33,14 +33,14 @@ namespace FW
 
     void Refine::run()
     {
-        runTraditionalTRBVH();
+        // runTraditionalTRBVH();
         // runBestAdversarial();
         // runExtremeTRBVH();
         // runBestSplitsLeafCollapse();
         // runExtremeBittner();
         // runTraditionalBittner();
         // runBestNoSplitsPrimPerLeaf();
-        // runBestSplitsPrimPerLeaf();
+        runBestSplitsPrimPerLeaf();
         // runQuickAndClean();
         // runTest();
     }
@@ -209,7 +209,7 @@ namespace FW
         bparams.priorityMetric = BRefine::PriorityHeur::PRIORITY_MIN_AND_SUM;
         BRefine BRef(*this, bparams);
 
-        for (int x = 0; x < 10000; x++) {
+        for (int x = 0; x < 100; x++) {
             BRef.run();
             bparams.batchSize *= 1.1f;
             if (bparams.batchSize > 0.1f) bparams.batchSize = 0.1f;

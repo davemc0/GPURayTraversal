@@ -24,12 +24,11 @@ namespace FW
     {
     }
 
-
-
-
-
-
-
+#if 0
+    //
+    // The unfinished prototype of my parallel algorithm
+    //
+    
     // Compute the SAH of the subtree that will change size from adding or removing a node
     // node - a node whose AABB will change
     // modBounds - the proposed new AABB of that node
@@ -199,7 +198,7 @@ namespace FW
         m_toOptimize.push_back(pr);
     }
 
-
+#endif
 
 
 
@@ -383,6 +382,7 @@ namespace FW
         //printf("\n");
     }
 
+    // Branch-and-bound algorithm
     BVHNode* BRefine::findInsertTarget(BVHNode* node)
     {
         FW_ASSERT(m_toSearch.size() == 0);
@@ -494,7 +494,7 @@ namespace FW
 
             // Compute node priorities
             m_toOptimize.resize(0);
-            newComputePriority(m_bvh.getRoot());
+            // newComputePriority(m_bvh.getRoot());
             computePriority(m_bvh.getRoot());
 
             // Sort nodes by priority

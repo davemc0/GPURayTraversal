@@ -2,6 +2,7 @@
 
 #include "bvh/BVHNode.hpp"
 #include "bvh/BatchSplitBVHBuilder.hpp"
+#include "bvh/conditional_output_iterator.h"
 #include "base/Array.hpp"
 #include "base/Timer.hpp"
 
@@ -234,7 +235,7 @@ void FW::BatchSplitBVHBuilder::doGeneration(S32& N, S32& nSegments, S32 level)
             }
         }
 
-        // Update best strategy
+        // Update best stra 
         // OPT: Would rather do this as a conditional_iterator as part of reduce_by_key.
         if (dim > 0)
             thrust::for_each_n(thrust::device, thrust::counting_iterator<S32>((S32)0), nSegments, [=] BHD(S32 i) {

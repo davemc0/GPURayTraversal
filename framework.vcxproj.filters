@@ -278,6 +278,15 @@
     <ClInclude Include="src\framework\gpu\CudaKernel.hpp">
       <Filter>gpu</Filter>
     </ClInclude>
+    <ClInclude Include="src\framework\base\DeviceDefs.hpp">
+      <Filter>base</Filter>
+    </ClInclude>
+    <ClInclude Include="src\framework\base\ArrayAllocator.hpp">
+      <Filter>base</Filter>
+    </ClInclude>
+    <ClInclude Include="src\framework\base\ManagedAllocator.hpp">
+      <Filter>base</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="src\framework\base\DLLImports.inl">

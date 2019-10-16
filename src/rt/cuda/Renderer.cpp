@@ -121,7 +121,7 @@ CudaBVH* Renderer::getCudaBVH(void)
 
     // Determine cache file name.
 
-    String cacheFileName = sprintf("%s/%08x.dat", m_bvhCachePath.getPtr(), hashBits(
+    String cacheFileName = Sprintf("%s/%08x.dat", m_bvhCachePath.getPtr(), hashBits(
         m_scene->hash(),
         m_platform.computeHash(),
         m_buildParams.computeHash(),
@@ -129,6 +129,8 @@ CudaBVH* Renderer::getCudaBVH(void)
 
     // Cache file exists => import.
 
+#if 0
+    // Don't use cache to enable BVH build experiments
     if (!hasError())
     {
         File file(cacheFileName, File::Read);
@@ -139,7 +141,7 @@ CudaBVH* Renderer::getCudaBVH(void)
         }
         clearError();
     }
-
+#endif
     // Display status.
 
     printf("\nBuilding BVH...\nThis will take a while.\n");

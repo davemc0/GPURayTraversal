@@ -73,9 +73,17 @@ void CudaTracer::setKernel(const String& kernelName)
 
     module->getKernel("queryConfig").launch(1, 1);
     m_kernelConfig = *(const KernelConfig*)module->getGlobal("g_config").getPtr();
+    FW_RASSERT(m_kernelConfig.bvhLayout != BVHLayout_Max);
 }
 
 //------------------------------------------------------------------------
+
+
+void printCounter(CudaModule* module, const char* name)
+{
+    S64 val = *(S64*)module->getGlobal(name).getMutablePtr();
+    printf("%s=%lld ", name, val);
+}
 
 F32 CudaTracer::traceBatch(RayBuffer& rays)
 {
@@ -153,15 +161,32 @@ F32 CudaTracer::traceBatch(RayBuffer& rays)
     int numBlocks = (desiredWarps + blockWarps - 1) / blockWarps;
 
     // Launch.
+    F32 timeElapsed = kernel.launchTimed(numBlocks * blockSize.x * blockSize.y, blockSize);
 
-    return kernel.launchTimed(numBlocks * blockSize.x * blockSize.y, blockSize);
+#if 0
+    static int pCount = 0;
+    if (pCount++ % 100 == 0) {
+        printCounter(module, "g_STAT_rayLaunches");
+        printCounter(module, "g_STAT_rayBoxTests");
+        printCounter(module, "g_STAT_rayTriTests");
+        printCounter(module, "g_STAT_rayBoxHits");
+        printCounter(module, "g_STAT_rayTriHits");
+        printCounter(module, "g_STAT_rayHits");
+        printCounter(module, "g_STAT_rayMisses");
+        printCounter(module, "g_STAT_stackPushes");
+        printCounter(module, "g_STAT_stackPops");
+        printf("\n");
+    }
+#endif
+
+    return timeElapsed;
 }
 
 //------------------------------------------------------------------------
 
 CudaModule* CudaTracer::compileKernel(void)
 {
-    m_compiler.setSourceFile(sprintf("src/rt/kernels/%s.cu", m_kernelName.getPtr()));
+    m_compiler.setSourceFile(Sprintf("src/rt/kernels/%s.cu", m_kernelName.getPtr()));
     m_compiler.clearDefines();
     CudaModule* module = m_compiler.compile();
     return module;

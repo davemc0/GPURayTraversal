@@ -81,8 +81,8 @@ CommonControls::CommonControls(U32 features)
 
     // Initialize file prefixes.
 
-    m_stateFilePrefix = sprintf("state_%s_", moduleShortName);
-    m_screenshotFilePrefix = sprintf("screenshot_%s_", moduleShortName);
+    m_stateFilePrefix = Sprintf("state_%s_", moduleShortName);
+    m_screenshotFilePrefix = Sprintf("screenshot_%s_", moduleShortName);
 }
 
 //------------------------------------------------------------------------
@@ -377,9 +377,9 @@ bool CommonControls::loadState(const String& fileName)
     // Display status.
 
     if (hasError())
-        message(sprintf("Unable to load state: %s", getError().getPtr()), "StateIO");
+        message(Sprintf("Unable to load state: %s", getError().getPtr()), "StateIO");
     else
-        message(sprintf("Loaded state from '%s'", fileName.getPtr()), "StateIO");
+        message(Sprintf("Loaded state from '%s'", fileName.getPtr()), "StateIO");
     return (!restoreError(oldError));
 }
 
@@ -435,9 +435,9 @@ bool CommonControls::saveState(const String& fileName)
     // Display status.
 
     if (hasError())
-        message(sprintf("Unable to save state: %s", getError().getPtr()), "StateIO");
+        message(Sprintf("Unable to save state: %s", getError().getPtr()), "StateIO");
     else
-        message(sprintf("Saved state to '%s'", fileName.getPtr()), "StateIO");
+        message(Sprintf("Saved state to '%s'", fileName.getPtr()), "StateIO");
     return (!restoreError(oldError));
 }
 
@@ -510,7 +510,7 @@ void CommonControls::render(GLContext* gl)
         String name = getScreenshotFileName();
         image.flipY();
         exportImage(name, &image);
-        message(sprintf("Saved screenshot to '%s'", name.getPtr()));
+        message(Sprintf("Saved screenshot to '%s'", name.getPtr()));
         m_screenshot = false;
     }
 
@@ -600,7 +600,7 @@ void CommonControls::render(GLContext* gl)
     {
         m_avgFrameTime = lerp(timeDelta, m_avgFrameTime, exp2(-timeDelta / 0.3f));
         if (showControls)
-            gl->drawLabel(sprintf("%.2f FPS", 1.0f / m_avgFrameTime),
+            gl->drawLabel(Sprintf("%.2f FPS", 1.0f / m_avgFrameTime),
                 Vec2f(m_rightX - 4.0f, m_viewSize.y - 2.0f),
                 Vec2f(1.0f, 1.0f), 0xFFFFFFFF);
         repaint = true;
@@ -973,8 +973,8 @@ String CommonControls::getSliderLabel(const Slider* s)
 {
     FW_ASSERT(s);
     if (s->floatTarget)
-        return sprintf(s->format.getPtr(), *s->floatTarget);
-    return sprintf(s->format.getPtr(), *s->intTarget);
+        return Sprintf(s->format.getPtr(), *s->floatTarget);
+    return Sprintf(s->format.getPtr(), *s->intTarget);
 }
 
 //------------------------------------------------------------------------
@@ -1000,7 +1000,7 @@ void CommonControls::enterSliderValue(Slider* s)
     FW_ASSERT(s);
     m_window->setVisible(false);
     //m_window.showModalMessage(sprintf("Please enter in text window: %s", s->getSliderLabel().getPtr()));
-    printf(sprintf("\nEnter %s:\n", getSliderLabel(s).getPtr()).getPtr());
+    printf(Sprintf("\nEnter %s:\n", getSliderLabel(s).getPtr()).getPtr());
 
     // Much like setSliderValue()
     // (FIXME Annoying thing about scanf, if you just hit Enter, it keeps reading)

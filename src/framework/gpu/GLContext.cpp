@@ -621,7 +621,7 @@ void GLContext::drawImage(const Image& image, const Vec4f& pos, const Vec2f& ali
     Vec2f posHi = posLo.getXY() + posRange;
 
     if (topToBottom)
-        swap(posLo.y, posHi.y);
+        std::swap(posLo.y, posHi.y);
 
     // Draw texture.
 
@@ -832,15 +832,12 @@ bool GLContext::choosePixelFormat(int& formatIdx, HDC hdc, const Config& config)
     if (!GL_FUNC_AVAILABLE(wglChoosePixelFormatARB))
         fail("wglChoosePixelFormatARB() not available!");
 
-    UINT numFormats = 0;
-    if (!wglChoosePixelFormatARB(hdc, &reqs[0].x, NULL, 0, NULL, &numFormats))
-        failWin32Error("wglChoosePixelFormatARB");
-    if (numFormats == 0)
+    UINT numFormats = 0, maxFormats = 128;
+	Array<int> formats(NULL, maxFormats);
+	if (!wglChoosePixelFormatARB(hdc, &reqs[0].x, NULL, maxFormats, formats.getPtr(), &numFormats))
+		failWin32Error("wglChoosePixelFormatARB");
+	if (numFormats == 0)
         return false;
-
-    Array<int> formats(NULL, numFormats);
-    if (!wglChoosePixelFormatARB(hdc, &reqs[0].x, NULL, numFormats, formats.getPtr(), &numFormats))
-        failWin32Error("wglChoosePixelFormatARB");
 
     // Choose format based on the preferences.
 

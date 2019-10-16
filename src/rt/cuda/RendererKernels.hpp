@@ -69,7 +69,6 @@ struct CountHitsInput
 
 //------------------------------------------------------------------------
 
-#if FW_CUDA
 extern "C"
 {
 
@@ -81,7 +80,6 @@ __device__ S32 g_CountHitsOutput;
 __global__ void countHitsKernel(void);
 
 }
-#endif
 
 //------------------------------------------------------------------------
 }

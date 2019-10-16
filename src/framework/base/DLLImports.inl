@@ -304,6 +304,11 @@ FW_DLL_IMPORT_CUDA( CUresult,   CUDAAPI,    cuCtxSetSharedMemConfig,            
 FW_DLL_IMPORT_CUDA( CUresult,   CUDAAPI,    cuFuncSetSharedMemConfig,               (CUfunction hfunc, CUsharedconfig config), (hfunc, config))
 #endif
 
+#if (CUDA_VERSION >= 7000)
+FW_DLL_IMPORT_CUDA( CUresult,   CUDAAPI,    cuMemAllocManaged,                      (CUdeviceptr *dptr, size_t bytesize, unsigned int flags), (dptr, bytesize, flags))
+FW_DLL_IMPORT_CUDA( CUresult,   CUDAAPI,    cuMemPrefetchAsync,                     (CUdeviceptr devPtr, size_t count, CUdevice dstDevice, CUstream hStream), (devPtr, count, dstDevice, hStream))
+#endif
+
 //------------------------------------------------------------------------
 // OpenGL
 //------------------------------------------------------------------------
@@ -444,10 +449,10 @@ FW_DLL_DECLARE_RETV(BOOL,       WINAPI,     wglGetPixelFormatAttribivARB,       
 // WinBase
 //------------------------------------------------------------------------
 
-FW_DLL_IMPORT_VOID(void,        WINAPI,     InitializeConditionVariable,            (PCONDITION_VARIABLE ConditionVariable), (ConditionVariable))
-FW_DLL_IMPORT_RETV(BOOL,        WINAPI,     SleepConditionVariableCS,               (PCONDITION_VARIABLE ConditionVariable, PCRITICAL_SECTION CriticalSection, DWORD dwMilliseconds), (ConditionVariable, CriticalSection, dwMilliseconds))
-FW_DLL_IMPORT_VOID(void,        WINAPI,     WakeAllConditionVariable,               (PCONDITION_VARIABLE ConditionVariable), (ConditionVariable))
-FW_DLL_IMPORT_VOID(void,        WINAPI,     WakeConditionVariable,                  (PCONDITION_VARIABLE ConditionVariable), (ConditionVariable))
+//FW_DLL_IMPORT_VOID(void,        WINAPI,     InitializeConditionVariable,            (PCONDITION_VARIABLE ConditionVariable), (ConditionVariable))
+//FW_DLL_IMPORT_RETV(BOOL,        WINAPI,     SleepConditionVariableCS,               (PCONDITION_VARIABLE ConditionVariable, PCRITICAL_SECTION CriticalSection, DWORD dwMilliseconds), (ConditionVariable, CriticalSection, dwMilliseconds))
+//FW_DLL_IMPORT_VOID(void,        WINAPI,     WakeAllConditionVariable,               (PCONDITION_VARIABLE ConditionVariable), (ConditionVariable))
+//FW_DLL_IMPORT_VOID(void,        WINAPI,     WakeConditionVariable,                  (PCONDITION_VARIABLE ConditionVariable), (ConditionVariable))
 
 //------------------------------------------------------------------------
 // WinMM

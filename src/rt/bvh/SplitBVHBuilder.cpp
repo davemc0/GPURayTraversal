@@ -28,6 +28,8 @@
 #include "bvh/SplitBVHBuilder.hpp"
 #include "base/Sort.hpp"
 
+#include <utility>
+
 using namespace FW;
 
 //------------------------------------------------------------------------
@@ -106,7 +108,7 @@ bool SplitBVHBuilder::sortCompare(void* data, int idxA, int idxB)
 void SplitBVHBuilder::sortSwap(void* data, int idxA, int idxB)
 {
     SplitBVHBuilder* ptr = (SplitBVHBuilder*)data;
-    swap(ptr->m_refStack[idxA], ptr->m_refStack[idxB]);
+    std::swap(ptr->m_refStack[idxA], ptr->m_refStack[idxB]);
 }
 
 //------------------------------------------------------------------------
@@ -182,6 +184,7 @@ BVHNode* SplitBVHBuilder::buildNode(NodeSpec spec, int level, F32 progressStart,
 
 BVHNode* SplitBVHBuilder::createLeaf(const NodeSpec& spec)
 {
+    // Remove node's triangles from refStack; add them to tris
     Array<S32>& tris = m_bvh.getTriIndices();
     for (int i = 0; i < spec.numRef; i++)
         tris.add(m_refStack.removeLast().triIdx);
@@ -352,7 +355,7 @@ void SplitBVHBuilder::performSpatialSplit(NodeSpec& left, NodeSpec& right, const
         if (refs[i].bounds.max()[split.dim] <= split.pos)
         {
             left.bounds.grow(refs[i].bounds);
-            swap(refs[i], refs[leftEnd++]);
+            std::swap(refs[i], refs[leftEnd++]);
         }
 
         // Entirely on the right-hand side?
@@ -360,7 +363,7 @@ void SplitBVHBuilder::performSpatialSplit(NodeSpec& left, NodeSpec& right, const
         else if (refs[i].bounds.min()[split.dim] >= split.pos)
         {
             right.bounds.grow(refs[i].bounds);
-            swap(refs[i--], refs[--rightStart]);
+            std::swap(refs[i--], refs[--rightStart]);
         }
     }
 
@@ -407,7 +410,7 @@ void SplitBVHBuilder::performSpatialSplit(NodeSpec& left, NodeSpec& right, const
         else if (minSAH == unsplitRightSAH)
         {
             right.bounds = rub;
-            swap(refs[leftEnd], refs[--rightStart]);
+            std::swap(refs[leftEnd], refs[--rightStart]);
         }
 
         // Duplicate?
@@ -467,7 +470,7 @@ void SplitBVHBuilder::splitReference(Reference& left, Reference& right, const Re
 
     // Intersect with original bounds.
 
-    left.bounds.max()[dim] = pos;
+    left.bounds.max()[dim] = pos; // Precise split plane instead of result of interpolation
     right.bounds.min()[dim] = pos;
     left.bounds.intersect(ref.bounds);
     right.bounds.intersect(ref.bounds);

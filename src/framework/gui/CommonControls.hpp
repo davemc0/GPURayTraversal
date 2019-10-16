@@ -170,7 +170,7 @@ public:
 
     void            setStateFilePrefix  (const String& prefix)      { m_stateFilePrefix = prefix; }
     void            setScreenshotFilePrefix(const String& prefix)   { m_screenshotFilePrefix = prefix; }
-    String          getStateFileName    (int idx) const             { return sprintf("%s%03d.dat", m_stateFilePrefix.getPtr(), idx); }
+    String          getStateFileName    (int idx) const             { return Sprintf("%s%03d.dat", m_stateFilePrefix.getPtr(), idx); }
     String          getScreenshotFileName(void) const;
 
     void            addStateObject      (StateObject* obj)          { if (obj && !m_stateObjs.contains(obj)) m_stateObjs.add(obj); }

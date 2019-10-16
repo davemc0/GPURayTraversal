@@ -35,6 +35,8 @@
 #include "io/ImageTiffIO.hpp"
 #include "io/ImageBmpIO.hpp"
 
+#include <utility>
+
 using namespace FW;
 
 //------------------------------------------------------------------------
@@ -447,7 +449,7 @@ void Image::flipX(void)
         for (int x = (m_size.x >> 1); x > 0; x--)
         {
             for (int i = 0; i < bpp; i++)
-                swap(ptrA[i], ptrB[i]);
+                std::swap(ptrA[i], ptrB[i]);
             ptrA += bpp;
             ptrB -= bpp;
         }

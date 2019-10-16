@@ -32,6 +32,8 @@
 #include "base/Random.hpp"
 #include "gpu/CudaCompiler.hpp"
 
+#include <utility>
+
 namespace FW
 {
 
@@ -79,9 +81,9 @@ void RayBuffer::randomSort(U32 randomSeed)
         S32 id  = slotToID[slot];
         S32 id2 = slotToID[slot2];
 
-        swap(rays[slot],    rays[slot2]);
-        swap(slotToID[slot],slotToID[slot2]);
-        swap(idToSlot[id],  idToSlot[id2]);
+        std::swap(rays[slot],    rays[slot2]);
+        std::swap(slotToID[slot],slotToID[slot2]);
+        std::swap(idToSlot[id],  idToSlot[id2]);
     }
 }
 

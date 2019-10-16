@@ -410,13 +410,13 @@ void App::render(GLContext* gl)
     S64 nodeBytes = bvh->getNodeBuffer().getSize();
     S64 triBytes = bvh->getTriWoopBuffer().getSize() + bvh->getTriIndexBuffer().getSize();
 
-    String rayStats = sprintf("%.2f million %s rays, %.2f ms, %.2f MRays/s",
+    String rayStats = Sprintf("%.2f million %s rays, %.2f ms, %.2f MRays/s",
         (F32)numRays * 1.0e-6f,
         s_rayTypeNames[m_rayType],
         launchTime * 1.0e3f,
         (F32)numRays * 1.0e-6f / launchTime);
 
-    String bvhStats = sprintf("%.2f Mtris, %.2f MB (%.2f MB for nodes, %.2f MB for tris)",
+    String bvhStats = Sprintf("%.2f Mtris, %.2f MB (%.2f MB for nodes, %.2f MB for tris)",
         (F32)m_mesh->numTriangles() * 1.0e-6f,
         (F32)(nodeBytes + triBytes) * exp2(-20),
         (F32)nodeBytes * exp2(-20),
@@ -468,7 +468,7 @@ void App::renderGuiHelp(GLContext* gl)
 
 bool App::loadMesh(const String& fileName)
 {
-    m_window.showModalMessage(sprintf("Loading mesh from '%s'...\nThis will take a few seconds.", fileName.getFileName().getPtr()));
+    m_window.showModalMessage(Sprintf("Loading mesh from '%s'...\nThis will take a few seconds.", fileName.getFileName().getPtr()));
 
     String oldError = clearError();
     MeshBase* mesh = importMesh(fileName);
@@ -477,7 +477,7 @@ bool App::loadMesh(const String& fileName)
     if (restoreError(oldError))
     {
         delete mesh;
-        String msg = sprintf("Error while loading '%s': %s", fileName.getPtr(), newError.getPtr());
+        String msg = Sprintf("Error while loading '%s': %s", fileName.getPtr(), newError.getPtr());
         printf("%s\n", msg.getPtr());
         m_commonCtrl.message(msg);
         return false;
@@ -487,7 +487,7 @@ bool App::loadMesh(const String& fileName)
     delete m_mesh;
     m_meshFileName = fileName;
     m_mesh = mesh;
-    m_commonCtrl.message(sprintf("Loaded mesh from '%s'", fileName.getPtr()));
+    m_commonCtrl.message(Sprintf("Loaded mesh from '%s'", fileName.getPtr()));
     return true;
 }
 
@@ -553,7 +553,7 @@ void App::firstTimeInit(void)
 void FW::listKernels(Array<String>& kernelNames)
 {
     WIN32_FIND_DATA fd;
-    HANDLE h = FindFirstFile(sprintf("%s/*.cu", s_kernelDir).getPtr(), &fd);
+    HANDLE h = FindFirstFile(Sprintf("%s/*.cu", s_kernelDir).getPtr(), &fd);
     if (h != INVALID_HANDLE_VALUE)
     {
         do
@@ -657,7 +657,7 @@ void FW::runBenchmark(
             {
                 // Print status.
 
-                String title = sprintf("%s, %s, camera %d", kernels[kernelIdx].getPtr(), s_rayTypeNames[rayType], cameraIdx);
+                String title = Sprintf("%s, %s, camera %d", kernels[kernelIdx].getPtr(), s_rayTypeNames[rayType], cameraIdx);
                 printf("%s...\n", title.getPtr());
                 window.setTitle(title);
 

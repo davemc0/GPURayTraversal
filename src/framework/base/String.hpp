@@ -67,13 +67,13 @@ public:
 
 	void			split		(char chr, Array<String>& pieces, bool includeEmpty = false) const;
 
-    String&         clear       (void)                          { m_chars.clear(); }
+    void            clear       (void)                          { m_chars.clear(); }
     String&         append      (char chr);
     String&         append      (const char* chars);
     String&         append      (const String& other);
     String&         appendf     (const char* fmt, ...);
     String&         appendfv    (const char* fmt, va_list args);
-    String&         compact     (void)                          { m_chars.compact(); }
+    void            compact     (void)                          { m_chars.compact(); }
 
     int             indexOf     (char chr) const                { return m_chars.indexOf(chr); }
     int             indexOf     (char chr, int fromIdx) const   { return m_chars.indexOf(chr, fromIdx); }

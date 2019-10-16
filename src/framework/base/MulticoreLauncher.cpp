@@ -28,6 +28,8 @@
 #include "base/MulticoreLauncher.hpp"
 #include "base/Timer.hpp"
 
+#include <cstdio>
+
 using namespace FW;
 
 //------------------------------------------------------------------------

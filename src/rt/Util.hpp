@@ -28,6 +28,8 @@
 #pragma once
 #include "base/Math.hpp"
 
+#include <cstdio>
+
 namespace FW
 {
 //------------------------------------------------------------------------
@@ -39,12 +41,14 @@ public:
     FW_CUDA_FUNC                    AABB        (const Vec3f& mn, const Vec3f& mx) : m_mn(mn), m_mx(mx) {}
 
     FW_CUDA_FUNC    void            grow        (const Vec3f& pt)   { m_mn = m_mn.min(pt); m_mx = m_mx.max(pt); }
-    FW_CUDA_FUNC    void            grow        (const AABB& aabb)  { grow(aabb.m_mn); grow(aabb.m_mx); }
+//  FW_CUDA_FUNC    void            grow        (const AABB& aabb)  { grow(aabb.m_mn); grow(aabb.m_mx); } // This implementation may fail with invalid AABBs
+    FW_CUDA_FUNC    void            grow        (const AABB& aabb)  { m_mn = m_mn.min(aabb.m_mn); m_mx = m_mx.max(aabb.m_mx); }
     FW_CUDA_FUNC    void            intersect   (const AABB& aabb)  { m_mn = m_mn.max(aabb.m_mn); m_mx = m_mx.min(aabb.m_mx); }
     FW_CUDA_FUNC    float           volume      (void) const        { if(!valid()) return 0.0f; return (m_mx.x-m_mn.x) * (m_mx.y-m_mn.y) * (m_mx.z-m_mn.z); }
     FW_CUDA_FUNC    float           area        (void) const        { if(!valid()) return 0.0f; Vec3f d = m_mx - m_mn; return (d.x*d.y + d.y*d.z + d.z*d.x)*2.0f; }
     FW_CUDA_FUNC    bool            valid       (void) const        { return m_mn.x<=m_mx.x && m_mn.y<=m_mx.y && m_mn.z<=m_mx.z; }
     FW_CUDA_FUNC    Vec3f           midPoint    (void) const        { return (m_mn+m_mx)*0.5f; }
+    FW_CUDA_FUNC    void            print       (void) const        { m_mn.print(); m_mx.print(); printf("\n"); }
     FW_CUDA_FUNC    const Vec3f&    min         (void) const        { return m_mn; }
     FW_CUDA_FUNC    const Vec3f&    max         (void) const        { return m_mx; }
     FW_CUDA_FUNC    Vec3f&          min         (void)              { return m_mn; }
@@ -56,6 +60,8 @@ private:
     Vec3f           m_mn;
     Vec3f           m_mx;
 };
+
+// FW_CUDA_FUNC    AABB            operator+   (const AABB& a, const AABB& b) { AABB u(a); u.grow(b); return u; }
 
 //------------------------------------------------------------------------
 

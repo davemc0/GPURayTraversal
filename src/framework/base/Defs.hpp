@@ -31,8 +31,6 @@
 #include <new>
 #include <string.h>
 
-namespace FW
-{
 //------------------------------------------------------------------------
 
 #ifndef NULL
@@ -51,34 +49,38 @@ namespace FW
 #   define FW_64    0
 #endif
 
-#ifdef __CUDACC__
-#   define FW_CUDA 1
+#ifdef __CUDA_ARCH__
+#   define FW_CUDA_DEVICE 1
 #else
-#   define FW_CUDA 0
+#   define FW_CUDA_DEVICE 0
 #endif
 
-#if FW_CUDA && !defined(__CUDA_ARCH__)
-#   define __CUDA_ARCH__ 100 // e.g. 120 = compute capability 1.2
+#ifdef __CUDACC__
+// Think about this. Need the right thing for device code, host code in NVCC, and host code in host compiler.
+#   define FW_CUDA_FUNC     __host__ __device__ __inline__
+#   define FW_CUDA_CONST    static const __constant__
+#else
+#   define FW_CUDA_FUNC     __forceinline
+#   define FW_CUDA_CONST    static const
 #endif
 
-#if (FW_DEBUG || defined(FW_ENABLE_ASSERT)) && !FW_CUDA
+#if (FW_DEBUG || defined(FW_ENABLE_ASSERT)) && !FW_CUDA_DEVICE
 #   define FW_ASSERT(X) ((X) ? ((void)0) : FW::fail("Assertion failed!\n%s:%d\n%s", __FILE__, __LINE__, #X))
 #else
 #   define FW_ASSERT(X) ((void)0)
 #endif
 
-#if FW_CUDA
-#   define FW_CUDA_FUNC     __device__ __inline__
-#   define FW_CUDA_CONST    __constant__
-#else
-#   define FW_CUDA_FUNC     inline
-#   define FW_CUDA_CONST    static const
+#if !FW_CUDA_DEVICE
+#   define FW_RASSERT(X) ((X) ? ((void)0) : FW::fail("Rel Assertion failed!\n%s:%d\n%s", __FILE__, __LINE__, #X))
 #endif
 
 #define FW_UNREF(X)         ((void)(X))
 #define FW_ARRAY_SIZE(X)    ((int)(sizeof(X) / sizeof((X)[0])))
 
 //------------------------------------------------------------------------
+
+namespace FW
+{
 
 typedef unsigned char       U8;
 typedef unsigned short      U16;
@@ -90,13 +92,8 @@ typedef float               F32;
 typedef double              F64;
 typedef void                (*FuncPtr)(void);
 
-#if FW_CUDA
 typedef unsigned long long  U64;
 typedef signed long long    S64;
-#else
-typedef unsigned __int64    U64;
-typedef signed __int64      S64;
-#endif
 
 #if FW_64
 typedef S64                 SPTR;
@@ -122,18 +119,20 @@ typedef __w64 U32           UPTR;
 
 //------------------------------------------------------------------------
 
-#if !FW_CUDA
-
 class String;
 
 // Common functionality.
 
+// #define FW_OVERRIDE_STD_LIB
+
+#ifdef FW_OVERRIDE_STD_LIB
 void*           malloc          (size_t size);
 void            free            (void* ptr);
 void*           realloc         (void* ptr, size_t size);
 
-void            printf          (const char* fmt, ...);
-String          sprintf         (const char* fmt, ...);
+//void            printf          (const char* fmt, ...);
+#endif
+String          Sprintf         (const char* fmt, ...);
 
 // Error handling.
 
@@ -173,12 +172,8 @@ void            profilePush     (const char* id);
 void            profilePop      (void);
 void            profileEnd      (bool printResults = true);
 
-#endif
-
 //------------------------------------------------------------------------
 // min(), max(), clamp().
-
-template <class T> FW_CUDA_FUNC void swap(T& a, T& b) { T t = a; a = b; b = t; }
 
 #define FW_SPECIALIZE_MINMAX(TEMPLATE, T, MIN, MAX) \
     TEMPLATE FW_CUDA_FUNC T min(T a, T b) { return MIN; } \
@@ -197,10 +192,12 @@ template <class T> FW_CUDA_FUNC void swap(T& a, T& b) { T t = a; a = b; b = t; }
     TEMPLATE FW_CUDA_FUNC T max(T a, T b, T c, T d, T e, T f, T g, T h) { return max(max(max(max(max(max(max(a, b), c), d), e), f), g), h); } \
     TEMPLATE FW_CUDA_FUNC T clamp(T v, T lo, T hi) { return min(max(v, lo), hi); }
 
+// Generalized specializations for any type
 FW_SPECIALIZE_MINMAX(template <class T>, T&, (a < b) ? a : b, (a > b) ? a : b)
 FW_SPECIALIZE_MINMAX(template <class T>, const T&, (a < b) ? a : b, (a > b) ? a : b)
 
-#if FW_CUDA
+#if FW_CUDA_DEVICE
+//These should be just for device code.
 FW_SPECIALIZE_MINMAX(, U32, ::min(a, b), ::max(a, b))
 FW_SPECIALIZE_MINMAX(, S32, ::min(a, b), ::max(a, b))
 FW_SPECIALIZE_MINMAX(, U64, ::min(a, b), ::max(a, b))
@@ -212,7 +209,7 @@ FW_SPECIALIZE_MINMAX(, F64, ::fmin(a, b), ::fmax(a, b))
 //------------------------------------------------------------------------
 // CUDA utilities.
 
-#if FW_CUDA
+#if FW_CUDA_DEVICE
 #   define globalThreadIdx (threadIdx.x + blockDim.x * (threadIdx.y + blockDim.y * (blockIdx.x + gridDim.x * blockIdx.y)))
 #endif
 
@@ -220,15 +217,13 @@ FW_SPECIALIZE_MINMAX(, F64, ::fmin(a, b), ::fmax(a, b))
 // new, delete.
 }
 
+//#define FW_DO_NOT_OVERRIDE_NEW_DELETE
+
 #ifndef FW_DO_NOT_OVERRIDE_NEW_DELETE
-#if !FW_CUDA
-
-inline void*    operator new        (size_t size)       { return FW::malloc(size); }
-inline void*    operator new[]      (size_t size)       { return FW::malloc(size); }
-inline void     operator delete     (void* ptr)         { return FW::free(ptr); }
-inline void     operator delete[]   (void* ptr)         { return FW::free(ptr); }
-
-#endif
+void*    operator new        (size_t size);
+void*    operator new[]      (size_t size);
+void     operator delete     (void* ptr)  ;
+void     operator delete[]   (void* ptr)  ;
 #endif // FW_DO_NOT_OVERRIDE_NEW_DELETE
 
 //------------------------------------------------------------------------

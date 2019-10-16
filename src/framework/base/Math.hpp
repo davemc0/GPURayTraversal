@@ -39,7 +39,7 @@ FW_CUDA_FUNC F64    sqrt            (F64 a)         { return ::sqrt(a); }
 FW_CUDA_FUNC S32    abs             (S32 a)         { return (a >= 0) ? a : -a; }
 FW_CUDA_FUNC S64    abs             (S64 a)         { return (a >= 0) ? a : -a; }
 FW_CUDA_FUNC F32    abs             (F32 a)         { return ::fabsf(a); }
-FW_CUDA_FUNC F64    abs             (F64 a)         { return ::abs(a); }
+FW_CUDA_FUNC F64    abs             (F64 a)         { return ::fabs(a); }
 FW_CUDA_FUNC F64    pow             (F64 a, F64 b)  { return ::pow(a, b); }
 FW_CUDA_FUNC F64    exp             (F64 a)         { return ::exp(a); }
 FW_CUDA_FUNC F64    log             (F64 a)         { return ::log(a); }
@@ -61,7 +61,7 @@ FW_CUDA_FUNC F64    ceil            (F64 a)         { return ::ceil(a); }
 FW_CUDA_FUNC U64    doubleToBits    (F64 a)         { return *(U64*)&a; }
 FW_CUDA_FUNC F64    bitsToDouble    (U64 a)         { return *(F64*)&a; }
 
-#if FW_CUDA
+#if FW_CUDA_DEVICE
 FW_CUDA_FUNC F32    pow             (F32 a, F32 b)  { return ::__powf(a, b); }
 FW_CUDA_FUNC F32    exp             (F32 a)         { return ::__expf(a); }
 FW_CUDA_FUNC F32    exp2            (F32 a)         { return ::exp2f(a); }
@@ -131,9 +131,7 @@ public:
     FW_CUDA_FUNC    void            set         (const T* ptr)              { FW_ASSERT(ptr); T* tp = getPtr(); for (int i = 0; i < L; i++) tp[i] = ptr[i]; }
     FW_CUDA_FUNC    void            setZero     (void)                      { set((T)0); }
 
-#if !FW_CUDA
-                    void            print       (void) const                { const T* tp = getPtr(); for (int i = 0; i < L; i++) printf("%g\n", (F64)tp[i]); }
-#endif
+    FW_CUDA_FUNC    void            print       (void) const                { const T* tp = getPtr(); printf("["); for (int i = 0; i < L; i++) printf("%g,", (F64)tp[i]); printf("]");}
 
     FW_CUDA_FUNC    bool            isZero      (void) const                { const T* tp = getPtr(); for (int i = 0; i < L; i++) if (tp[i] != (T)0) return false; return true; }
     FW_CUDA_FUNC    T               lenSqr      (void) const                { const T* tp = getPtr(); T r = (T)0; for (int i = 0; i < L; i++) r += sqr(tp[i]); return r; }
@@ -362,10 +360,8 @@ public:
     FW_CUDA_FUNC    Vec3f           getXYZ      (void) const                { return Vec3f(x, y, z); }
     FW_CUDA_FUNC    Vec3f           getXYW      (void) const                { return Vec3f(x, y, w); }
 
-#if !FW_CUDA
     static Vec4f    fromABGR        (U32 abgr);
     U32             toABGR          (void) const;
-#endif
 
     template <class V> FW_CUDA_FUNC Vec4f(const VectorBase<F32, 4, V>& v) { set(v); }
     template <class V> FW_CUDA_FUNC Vec4f& operator=(const VectorBase<F32, 4, V>& v) { set(v); return *this; }
@@ -530,9 +526,7 @@ public:
     FW_CUDA_FUNC    void            setZero     (void)                      { set((T)0); }
     FW_CUDA_FUNC    void            setIdentity (void)                      { setZero(); for (int i = 0; i < L; i++) get(i, i) = (T)1; }
 
-#if !FW_CUDA
-                    void            print       (void) const;
-#endif
+    FW_CUDA_FUNC    void            print       (void) const;
 
     FW_CUDA_FUNC    T               det         (void) const;
     FW_CUDA_FUNC    S               transposed  (void) const;
@@ -658,9 +652,7 @@ public:
     template <class V> FW_CUDA_FUNC Mat3f(const MatrixBase<F32, 3, V>& v) { set(v); }
     template <class V> FW_CUDA_FUNC Mat3f& operator=(const MatrixBase<F32, 3, V>& v) { set(v); return *this; }
 
-#if !FW_CUDA 
 	static			Mat3f			rotation	(const Vec3f& axis, F32 angle);		// Rotation of "angle" radians around "axis". Axis must be unit!
-#endif
 
 public:
     F32             m00, m10, m20;
@@ -680,11 +672,9 @@ public:
     FW_CUDA_FUNC    F32*            getPtr      (void)                      { return &m00; }
     static FW_CUDA_FUNC Mat4f       fromPtr     (const F32* ptr)            { Mat4f v; v.set(ptr); return v; }
 
-#if !FW_CUDA
-    Mat3f                           getXYZ      (void) const;
-    static Mat4f                    fitToView   (const Vec2f& pos, const Vec2f& size, const Vec2f& viewSize);
-    static Mat4f                    perspective (F32 fov, F32 nearDist, F32 farDist);
-#endif
+    Mat3f               getXYZ      (void) const;
+    static  Mat4f       fitToView   (const Vec2f& pos, const Vec2f& size, const Vec2f& viewSize);
+    static  Mat4f       perspective (F32 fov, F32 nearDist, F32 farDist);
 
     template <class V> FW_CUDA_FUNC Mat4f(const MatrixBase<F32, 4, V>& v) { set(v); }
     template <class V> FW_CUDA_FUNC Mat4f& operator=(const MatrixBase<F32, 4, V>& v) { set(v); return *this; }
@@ -734,9 +724,7 @@ public:
 
     FW_CUDA_FUNC    operator        Mat3f       (void) const                { Mat3f r; for (int i = 0; i < 3 * 3; i++) r.set(i, (F32)get(i)); return r; }
 
-#if !FW_CUDA 
-	static			Mat3d			rotation	(const Vec3d& axis, F64 angle);		// Rotation of "angle" radians around "axis". Axis must be unit!
-#endif
+    static FW_CUDA_FUNC Mat3d   	rotation	(const Vec3d& axis, F64 angle);		// Rotation of "angle" radians around "axis". Axis must be unit!
 
     template <class V> FW_CUDA_FUNC Mat3d(const MatrixBase<F64, 3, V>& v) { set(v); }
     template <class V> FW_CUDA_FUNC Mat3d& operator=(const MatrixBase<F64, 3, V>& v) { set(v); return *this; }
@@ -793,59 +781,8 @@ template <class T, int L, class S> FW_CUDA_FUNC S operator>>    (const T& a, con
 
 //------------------------------------------------------------------------
 
-FW_CUDA_CONST int c_popc8LUT[] =
-{
-    0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4,
-    1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
-    1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
-    2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
-    1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
-    2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
-    2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
-    3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
-    1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
-    2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
-    2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
-    3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
-    2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
-    3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
-    3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
-    4, 5, 5, 6, 5, 6, 6, 7, 5, 6, 6, 7, 6, 7, 7, 8,
-};
-
-FW_CUDA_FUNC int popc8(U32 mask)
-{
-    return c_popc8LUT[mask & 0xFFu];
-}
-
-FW_CUDA_FUNC int popc16(U32 mask)
-{
-    return c_popc8LUT[mask & 0xFFu] + c_popc8LUT[(mask >> 8) & 0xFFu];
-}
-
-FW_CUDA_FUNC int popc32(U32 mask)
-{
-    int result = c_popc8LUT[mask & 0xFFu];
-    result += c_popc8LUT[(mask >> 8) & 0xFFu];
-    result += c_popc8LUT[(mask >> 16) & 0xFFu];
-    result += c_popc8LUT[mask >> 24];
-    return result;
-}
-
-FW_CUDA_FUNC int popc64(U64 mask)
-{
-    U32 lo = (U32)mask;
-    U32 hi = (U32)(mask >> 32);
-    int result = c_popc8LUT[lo & 0xffu] + c_popc8LUT[hi & 0xffu];
-    result += c_popc8LUT[(lo >> 8) & 0xffu] + c_popc8LUT[(hi >> 8) & 0xffu];
-    result += c_popc8LUT[(lo >> 16) & 0xffu] + c_popc8LUT[(hi >> 16) & 0xffu];
-    result += c_popc8LUT[lo >> 24] + c_popc8LUT[hi >> 24];
-    return result;
-}
-
-//------------------------------------------------------------------------
-
-template <class T, int L, class S> template <class V> S MatrixBase<T, L, S>::translate(const VectorBase<T, L - 1, V>& v)
+template <class T, int L, class S> template <class V>
+FW_CUDA_FUNC S MatrixBase<T, L, S>::translate(const VectorBase<T, L - 1, V>& v)
 {
     S r;
     for (int i = 0; i < L - 1; i++)
@@ -855,7 +792,8 @@ template <class T, int L, class S> template <class V> S MatrixBase<T, L, S>::tra
 
 //------------------------------------------------------------------------
 
-template <class T, int L, class S> template <class V> S MatrixBase<T, L, S>::scale(const VectorBase<T, L - 1, V>& v)
+template <class T, int L, class S> template <class V>
+FW_CUDA_FUNC S MatrixBase<T, L, S>::scale(const VectorBase<T, L - 1, V>& v)
 {
     S r;
     for (int i = 0; i < L - 1; i++)
@@ -865,7 +803,8 @@ template <class T, int L, class S> template <class V> S MatrixBase<T, L, S>::sca
 
 //------------------------------------------------------------------------
 
-template <class T, int L, class S> template <class V> S MatrixBase<T, L, S>::scale(const VectorBase<T, L, V>& v)
+template <class T, int L, class S> template <class V>
+FW_CUDA_FUNC S MatrixBase<T, L, S>::scale(const VectorBase<T, L, V>& v)
 {
     S r;
     for (int i = 0; i < L; i++)
@@ -875,7 +814,8 @@ template <class T, int L, class S> template <class V> S MatrixBase<T, L, S>::sca
 
 //------------------------------------------------------------------------
 
-template <class T, int L, class S> Vector<T, L> MatrixBase<T, L, S>::getRow(int idx) const
+template <class T, int L, class S>
+FW_CUDA_FUNC Vector<T, L> MatrixBase<T, L, S>::getRow(int idx) const
 {
     Vector<T, L> r;
     for (int i = 0; i < L; i++)
@@ -885,8 +825,7 @@ template <class T, int L, class S> Vector<T, L> MatrixBase<T, L, S>::getRow(int 
 
 //------------------------------------------------------------------------
 
-#if !FW_CUDA
-template <class T, int L, class S> void MatrixBase<T, L, S>::print(void) const
+template <class T, int L, class S> FW_CUDA_FUNC void MatrixBase<T, L, S>::print(void) const
 {
     for (int i = 0; i < L; i++)
     {
@@ -895,7 +834,6 @@ template <class T, int L, class S> void MatrixBase<T, L, S>::print(void) const
         printf("\n");
     }
 }
-#endif
 
 //------------------------------------------------------------------------
 
@@ -940,14 +878,14 @@ template <class T, class S> FW_CUDA_FUNC T detImpl(const MatrixBase<T, 3, S>& v)
 
 //------------------------------------------------------------------------
 
-template <class T, int L, class S> T MatrixBase<T, L, S>::det(void) const
+template <class T, int L, class S> FW_CUDA_FUNC T MatrixBase<T, L, S>::det(void) const
 {
     return detImpl(*this);
 }
 
 //------------------------------------------------------------------------
 
-template <class T, int L, class S> S MatrixBase<T, L, S>::transposed(void) const
+template <class T, int L, class S> FW_CUDA_FUNC S MatrixBase<T, L, S>::transposed(void) const
 {
     S r;
     for (int i = 0; i < L; i++)
@@ -958,7 +896,7 @@ template <class T, int L, class S> S MatrixBase<T, L, S>::transposed(void) const
 
 //------------------------------------------------------------------------
 
-template <class T, int L, class S> S MatrixBase<T, L, S>::inverted(void) const
+template <class T, int L, class S> FW_CUDA_FUNC S MatrixBase<T, L, S>::inverted(void) const
 {
     S r;
     T d = (T)0;
@@ -984,7 +922,7 @@ template <class T, int L, class S> S MatrixBase<T, L, S>::inverted(void) const
 
 //------------------------------------------------------------------------
 
-template <class T, int L, class S> template <class V> void MatrixBase<T, L, S>::setRow(int idx, const VectorBase<T, L, V>& v)
+template <class T, int L, class S> template <class V> FW_CUDA_FUNC void MatrixBase<T, L, S>::setRow(int idx, const VectorBase<T, L, V>& v)
 {
     for (int i = 0; i < L; i++)
         get(idx, i) = v[i];
@@ -992,7 +930,7 @@ template <class T, int L, class S> template <class V> void MatrixBase<T, L, S>::
 
 //------------------------------------------------------------------------
 
-template <class T, int L, class S> template<class V> V MatrixBase<T, L, S>::operator*(const VectorBase<T, L, V>& v) const
+template <class T, int L, class S> template<class V> FW_CUDA_FUNC V MatrixBase<T, L, S>::operator*(const VectorBase<T, L, V>& v) const
 {
     V r;
     for (int i = 0; i < L; i++)
@@ -1007,7 +945,7 @@ template <class T, int L, class S> template<class V> V MatrixBase<T, L, S>::oper
 
 //------------------------------------------------------------------------
 
-template <class T, int L, class S> template<class V> V MatrixBase<T, L, S>::operator*(const VectorBase<T, L - 1, V>& v) const
+template <class T, int L, class S> template<class V> FW_CUDA_FUNC V MatrixBase<T, L, S>::operator*(const VectorBase<T, L - 1, V>& v) const
 {
     T w = get(L - 1, L - 1);
     for (int i = 0; i < L - 1; i++)
@@ -1027,7 +965,7 @@ template <class T, int L, class S> template<class V> V MatrixBase<T, L, S>::oper
 
 //------------------------------------------------------------------------
 
-template <class T, int L, class S> template <class V> S MatrixBase<T, L, S>::operator*(const MatrixBase<T, L, V>& v) const
+template <class T, int L, class S> template <class V> FW_CUDA_FUNC S MatrixBase<T, L, S>::operator*(const MatrixBase<T, L, V>& v) const
 {
     S r;
     for (int i = 0; i < L; i++)
@@ -1045,7 +983,7 @@ template <class T, int L, class S> template <class V> S MatrixBase<T, L, S>::ope
 
 //------------------------------------------------------------------------
 
-template <class T, int L, class S> Matrix<T, L> outerProduct(const VectorBase<T, L, S>& a, const VectorBase<T, L, S>& b)
+template <class T, int L, class S> FW_CUDA_FUNC Matrix<T, L> outerProduct(const VectorBase<T, L, S>& a, const VectorBase<T, L, S>& b)
 {
     Matrix<T, L> res;
     for (int i = 0; i < L; i++)

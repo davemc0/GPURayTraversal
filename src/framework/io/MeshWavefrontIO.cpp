@@ -411,16 +411,18 @@ void FW::loadObj(ImportState& s, BufferedInputStream& objIn, const String& dirNa
                         ptn[i] = -1;
                 }
 
-                S32* idx = s.vertexHash.search(ptn);
-                if (idx)
-                    s.vertexTmp.add(*idx);
-                else
                 {
-                    s.vertexTmp.add(s.vertexHash.add(ptn, s.mesh->numVertices()));
-                    VertexPNT& v = s.mesh->addVertex();
-                v.p = (ptn.x == -1) ? Vec3f(0.0f) : s.positions[ptn.x];
-                v.t = (ptn.y == -1) ? Vec2f(0.0f) : s.texCoords[ptn.y];
-                v.n = (ptn.z == -1) ? Vec3f(0.0f) : s.normals[ptn.z];
+                    S32* idx = s.vertexHash.search(ptn);
+                    if (idx)
+                        s.vertexTmp.add(*idx);
+                    else
+                    {
+                        s.vertexTmp.add(s.vertexHash.add(ptn, s.mesh->numVertices()));
+                        VertexPNT& v = s.mesh->addVertex();
+                        v.p = (ptn.x == -1) ? Vec3f(0.0f) : s.positions[ptn.x];
+                        v.t = (ptn.y == -1) ? Vec2f(0.0f) : s.texCoords[ptn.y];
+                        v.n = (ptn.z == -1) ? Vec3f(0.0f) : s.normals[ptn.z];
+                    }
                 }
             }
             if (!*ptr)
@@ -555,9 +557,11 @@ void FW::exportWavefrontMesh(BufferedOutputStream& stream, const MeshBase* mesh,
 
     String dirName = fileName.getDirName();
     String baseName = fileName.getFileName();
-    int idx = baseName.indexOf('.');
-    if (idx != -1)
-        baseName = baseName.substring(0, idx);
+    {
+        int idx = baseName.indexOf('.');
+        if (idx != -1)
+            baseName = baseName.substring(0, idx);
+    }
 
     // Write OBJ file.
 
@@ -626,20 +630,22 @@ void FW::exportWavefrontMesh(BufferedOutputStream& stream, const MeshBase* mesh,
             // Extract name from ID.
 
             String name = tex.getID().getFileName();
-            int idx = name.indexOf('.');
-            if (idx != -1)
-                name = name.substring(0, idx);
+            {
+                int idx = name.indexOf('.');
+                if (idx != -1)
+                    name = name.substring(0, idx);
+            }
 
             // No name => generate one.
 
             if (!name.getLength())
-                name = sprintf("tex%d", texImageHash.getSize());
+                name = Sprintf("tex%d", texImageHash.getSize());
 
             // Ensure that the name is unique.
 
             String oldName = name;
             for (int k = 0; texNameSet.contains(name); k++)
-                name = sprintf("%s_%d", oldName.getPtr(), k);
+                name = Sprintf("%s_%d", oldName.getPtr(), k);
 
             // Append format postfix.
 

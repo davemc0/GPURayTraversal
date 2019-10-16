@@ -28,6 +28,8 @@
 #include "base/Sort.hpp"
 #include "base/MulticoreLauncher.hpp"
 
+#include <utility>
+
 using namespace FW;
 
 //------------------------------------------------------------------------
@@ -87,7 +89,7 @@ int FW::median3(int low, int high, void* data, SortCompareFunc compareFunc)
     int c = (low + high) >> 1;
     int h = high - 2;
 
-    if (compareFunc(data, h, l)) swap(l, h);
+    if (compareFunc(data, h, l)) std::swap(l, h);
     if (compareFunc(data, c, l)) c = l;
     return (compareFunc(data, h, c)) ? h : c;
 }
@@ -214,26 +216,26 @@ void FW::sort(void* data, int start, int end, SortCompareFunc compareFunc, SortS
 
     if (!multicore || end - start < MULTICORE_MIN_SIZE)
     {
-    qsort(start, end, data, compareFunc, swapFunc);
-}
+        qsort(start, end, data, compareFunc, swapFunc);
+    }
 
     // Multicore.
 
     else
-{
-    TaskSpec* spec = new TaskSpec;
-    spec->low = start;
-    spec->high = end;
-    spec->data = data;
-    spec->compareFunc = compareFunc;
-    spec->swapFunc = swapFunc;
+    {
+        TaskSpec* spec = new TaskSpec;
+        spec->low = start;
+        spec->high = end;
+        spec->data = data;
+        spec->compareFunc = compareFunc;
+        spec->swapFunc = swapFunc;
 
-    MulticoreLauncher launcher;
-    MulticoreLauncher::Task task;
-    task.launcher = &launcher;
-    task.data = spec;
-    qsortMulticore(task);
-}
+        MulticoreLauncher launcher;
+        MulticoreLauncher::Task task;
+        task.launcher = &launcher;
+        task.data = spec;
+        qsortMulticore(task);
+    }
 }
 
 //------------------------------------------------------------------------

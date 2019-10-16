@@ -80,7 +80,7 @@ public:
     CUfunction          getHandle           (void) const                { return m_function; }
     int                 getAttribute        (CUfunction_attribute attrib) const;
 
-    CudaKernel&         setParams           (const void* ptr, int size) { m_params.set((const U8*)ptr, size); }
+    CudaKernel&         setParams           (const void* ptr, int size) { m_params.set((const U8*)ptr, size); return *this; }
     CudaKernel&         setParams           (const Param* const* params, int numParams);
 
     CudaKernel&         setParams           (void)                                                                                                  { return setParams((const Param* const*)NULL, 0); }

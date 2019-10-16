@@ -29,6 +29,9 @@
 
 using namespace FW;
 
+// Declare now that I commented out these functions in DLLImports.inl.
+static bool isAvailable_InitializeConditionVariable() { return true; }
+
 //------------------------------------------------------------------------
 
 Spinlock            Thread::s_lock;

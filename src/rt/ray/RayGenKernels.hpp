@@ -26,7 +26,6 @@
  */
 
 #pragma once
-#include "base/DLLImports.hpp"
 #include "base/Math.hpp"
 #include "Util.hpp"
 
@@ -85,7 +84,6 @@ struct RayGenShadowInput
 
 //------------------------------------------------------------------------
 
-#if FW_CUDA
 extern "C"
 {
 
@@ -99,7 +97,6 @@ __constant__ RayGenShadowInput c_RayGenShadowInput;
 __global__ void rayGenShadowKernel(void);
 
 }
-#endif
 
 //------------------------------------------------------------------------
 }

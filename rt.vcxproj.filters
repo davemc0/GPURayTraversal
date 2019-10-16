@@ -13,6 +13,9 @@
     <Filter Include="ray">
       <UniqueIdentifier>{3920db06-697c-4abf-a3ec-ed1c06b94c0c}</UniqueIdentifier>
     </Filter>
+    <Filter Include="bvhcmpr">
+      <UniqueIdentifier>{e6fa769c-1d6b-4a19-8088-b6ba143eb369}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\rt\bvh\BVH.cpp">
@@ -95,6 +98,9 @@
     <ClInclude Include="src\rt\App.hpp" />
     <ClInclude Include="src\rt\Scene.hpp" />
     <ClInclude Include="src\rt\Util.hpp" />
+    <ClInclude Include="src\rt\bvh\conditional_output_iterator.h">
+      <Filter>bvh</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CustomBuildStep Include="src\rt\cuda\RendererKernels.cu">
@@ -121,6 +127,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="src\rt\kernels\kepler_dynamic_fetch.cu">
+      <Filter>kernels</Filter>
+    </None>
+    <None Include="src\rt\kernels\kepler_dynamic_fetch_exper.cu">
       <Filter>kernels</Filter>
     </None>
   </ItemGroup>

@@ -353,8 +353,8 @@ String Window::showFileDialog(const String& title, bool save, const String& filt
             all += ext;
         }
 
-        String title = filters.substring(colon + 1, comma);
-        filterStr.appendf("%s Files (%s)\n%s\n", title.getPtr(), all.getPtr(), all.getPtr());
+        String titlex = filters.substring(colon + 1, comma);
+        filterStr.appendf("%s Files (%s)\n%s\n", titlex.getPtr(), all.getPtr(), all.getPtr());
         numFilters++;
         start = comma + 1;
     }
@@ -371,7 +371,7 @@ String Window::showFileDialog(const String& title, bool save, const String& filt
             all += "*.";
             all += extensions[i];
         }
-        filterStr = sprintf("All Supported Formats (%s)\n%s\n", all.getPtr(), all.getPtr()) + filterStr;
+        filterStr = Sprintf("All Supported Formats (%s)\n%s\n", all.getPtr(), all.getPtr()) + filterStr;
     }
     filterStr += "All Files (*.*)\n*.*\n";
 

@@ -26,7 +26,6 @@
  */
 
 #pragma once
-#include "base/DLLImports.hpp"
 #include "base/Math.hpp"
 #include "Util.hpp"
 
@@ -91,7 +90,6 @@ struct ReorderRaysInput
 
 //------------------------------------------------------------------------
 
-#if FW_CUDA
 extern "C"
 {
 
@@ -106,7 +104,6 @@ __constant__ ReorderRaysInput c_ReorderRaysInput;
 __global__ void reorderRaysKernel(void);
 
 }
-#endif
 
 //------------------------------------------------------------------------
 }

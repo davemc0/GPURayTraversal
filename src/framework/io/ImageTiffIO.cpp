@@ -258,19 +258,19 @@ Image* FW::importTiffImage(InputStream& stream)
     U8* dst = data;
     for (int i = 0; i < stripOfs->getSize() && !hasError(); i++)
     {
-        int size = stripBytes->get(i);
+        int sizeBytes = stripBytes->get(i);
         in.seek(stripOfs->get(i));
-        const U8* src = in.read(size);
-        const U8* srcEnd = src + size;
+        const U8* src = in.read(sizeBytes);
+        const U8* srcEnd = src + sizeBytes;
 
         // Uncompressed => just read the bytes.
 
         if (!packBits)
         {
-            dst += size;
+            dst += sizeBytes;
             if (dst > dataEnd)
                 break;
-            memcpy(dst - size, src, size);
+            memcpy(dst - sizeBytes, src, sizeBytes);
             continue;
         }
 

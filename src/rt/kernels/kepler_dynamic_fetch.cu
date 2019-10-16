@@ -100,7 +100,7 @@ TRACE_FUNC
         // Fetch new rays from the global pool using lane 0.
 
         const bool          terminated     = nodeAddr==EntrypointSentinel;
-        const unsigned int  maskTerminated = __ballot(terminated);
+        const unsigned int  maskTerminated = __ballot_sync(__activemask(), terminated);
         const int           numTerminated  = __popc(maskTerminated);
         const int           idxTerminated  = __popc(maskTerminated & ((1u<<tidx)-1));
 
@@ -220,23 +220,8 @@ TRACE_FUNC
                 }
 
                 // All SIMD lanes have found a leaf? => process them.
-
-                // NOTE: inline PTX implementation of "if(!__any(leafAddr >= 0)) break;".
-                // tried everything with CUDA 4.2 but always got several redundant instructions.
-
-                unsigned int mask;
-                asm("{\n"
-                    "   .reg .pred p;               \n"
-                    "setp.ge.s32        p, %1, 0;   \n"
-                    "vote.ballot.b32    %0,p;       \n"
-                    "}"
-                    : "=r"(mask)
-                    : "r"(leafAddr));
-                if(!mask)
+                if(!__any_sync(__activemask(), leafAddr >= 0))
                     break;
-
-                //if(!__any(leafAddr >= 0))
-                //    break;
             }
 
             // Process postponed leaf nodes.
@@ -306,7 +291,7 @@ TRACE_FUNC
 
             // DYNAMIC FETCH
 
-            if( __popc(__ballot(true)) < DYNAMIC_FETCH_THRESHOLD )
+            if( __popc(__ballot_sync(__activemask(), true)) < DYNAMIC_FETCH_THRESHOLD )
                 break;
 
         } // traversal

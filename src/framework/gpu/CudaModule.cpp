@@ -31,7 +31,11 @@
 #include "gpu/CudaCompiler.hpp"
 #include "gui/Image.hpp"
 
+#include <cstdio>
+
 using namespace FW;
+
+#pragma warning(disable : 4996)
 
 //------------------------------------------------------------------------
 
@@ -567,6 +571,11 @@ void CudaModule::printDeviceInfo(CUdevice device)
 #else
 #   define A40(ENUM, NAME) // TODO: Some of these may exist in earlier versions, too.
 #endif
+#if (CUDA_VERSION >= 6000)
+#   define A60(ENUM, NAME) A21(ENUM, NAME)
+#else
+#   define A60(ENUM, NAME)
+#endif
 
         A21(CLOCK_RATE,                         "Clock rate")
         A40(MEMORY_CLOCK_RATE,                  "Memory clock rate")
@@ -610,9 +619,13 @@ void CudaModule::printDeviceInfo(CUdevice device)
         A21(GPU_OVERLAP,                        "Concurrent memcopy supported")
         A40(ASYNC_ENGINE_COUNT,                 "Max concurrent memcopies")
 //      A40(KERNEL_EXEC_TIMEOUT,                "Kernel launch time limited")
-//      A40(INTEGRATED,                         "Integrated with host memory")
+        A40(INTEGRATED,                         "Integrated with host memory")
         A40(UNIFIED_ADDRESSING,                 "Unified addressing supported")
         A40(CAN_MAP_HOST_MEMORY,                "Can map host memory")
+        A60(PAGEABLE_MEMORY_ACCESS,             "Coh. access pageable memory")
+        A60(CONCURRENT_MANAGED_ACCESS,          "Coh. access mng memory w/ CPU")
+        A60(PAGEABLE_MEMORY_ACCESS_USES_HOST_PAGE_TABLES, "Pageable mem via host PTE")
+        A60(DIRECT_MANAGED_MEM_ACCESS_FROM_HOST, "Access device mng mem wo migr")
         A40(ECC_ENABLED,                        "ECC enabled")
 
 //      A40(TCC_DRIVER,                         "Driver is TCC")
@@ -637,7 +650,7 @@ void CudaModule::printDeviceInfo(CUdevice device)
     name[FW_ARRAY_SIZE(name) - 1] = '\0';
 
     printf("\n");
-    printf("%-32s%s\n", sprintf("CUDA device %d", (int)device).getPtr(), name);
+    printf("%-32s%s\n", Sprintf("CUDA device %d", (int)device).getPtr(), name);
     printf("%-32s%s\n", "---", "---");
     printf("%-32s%d.%d\n", "Compute capability", major, minor);
     printf("%-32s%.0f megs\n", "Total memory", (F32)memory * exp2(-20));

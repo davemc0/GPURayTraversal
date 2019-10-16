@@ -30,6 +30,8 @@
 
 using namespace FW;
 
+#pragma warning(disable : 4996)
+
 //------------------------------------------------------------------------
 
 #define FW_IO_BUFFER_SIZE 65536
@@ -660,9 +662,9 @@ void Buffer::cudaAlloc(CUdeviceptr& cudaPtr, CUdeviceptr& cudaBase, bool& cudaGL
             CudaModule::checkError("cuGLRegisterBufferObject", cuGLRegisterBufferObject(glBuffer));
             cudaGLReg = true;
         }
-        CUsize_t size;
+        CUsize_t sizeCU;
         FW_ASSERT(align == 1);
-        CudaModule::checkError("cuGLMapBufferObject", cuGLMapBufferObject(&cudaBase, &size, glBuffer));
+        CudaModule::checkError("cuGLMapBufferObject", cuGLMapBufferObject(&cudaBase, &sizeCU, glBuffer));
         cudaPtr = cudaBase;
     }
 }

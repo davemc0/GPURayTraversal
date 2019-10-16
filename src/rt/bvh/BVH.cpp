@@ -28,6 +28,8 @@
 #include "bvh/BVH.hpp"
 #include "bvh/SplitBVHBuilder.hpp"
 
+#include <utility>
+
 using namespace FW;
 
 BVH::BVH(Scene* scene, const Platform& platform, const BuildParams& params)
@@ -146,8 +148,8 @@ void BVH::traceRecursive(BVHNode* node, Ray& ray, RayResult& result,bool needClo
         if(intersect0 && intersect1)
         if(tspan0[TMIN] > tspan1[TMIN])
         {
-            swap(tspan0,tspan1);
-            swap(child0,child1);
+            std::swap(tspan0,tspan1);
+            std::swap(child0,child1);
         }
 
         if(intersect0)

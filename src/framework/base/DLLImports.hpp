@@ -42,33 +42,29 @@
 #   pragma warning(pop)
 #endif
 
-#if (!FW_CUDA)
-#   define _WIN32_WINNT 0x0600
-#   define WIN32_LEAN_AND_MEAN
-#   define _KERNEL32_
-#   define _WINMM_
-#   include <windows.h>
-#   undef min
-#   undef max
+#define _WIN32_WINNT 0x0600
+#define WIN32_LEAN_AND_MEAN
+#define _KERNEL32_
+#define _WINMM_
+#include <windows.h>
+#undef min
+#undef max
 
-#   pragma warning(push,3)
-#   include <mmsystem.h>
-#   pragma warning(pop)
+#pragma warning(push,3)
+#include <mmsystem.h>
+#pragma warning(pop)
 
-#   define _SHLWAPI_
-#   include <shlwapi.h>
-#endif
+#define _SHLWAPI_
+#include <shlwapi.h>
 
 //------------------------------------------------------------------------
 
 namespace FW
 {
-#if (!FW_CUDA)
 void    setCudaDLLName      (const String& name);
 void    initDLLImports      (void);
 void    initGLImports       (void);
 void    deinitDLLImports    (void);
-#endif
 }
 
 //------------------------------------------------------------------------
@@ -127,7 +123,7 @@ typedef size_t          CUsize_t;
 // GL definitions.
 //------------------------------------------------------------------------
 
-#if (!FW_CUDA && FW_USE_GLEW)
+#if (FW_USE_GLEW)
 #   define GL_FUNC_AVAILABLE(NAME) (NAME != NULL)
 #   define GLEW_STATIC
 #   include "3rdparty/glew/include/GL/glew.h"
@@ -136,7 +132,7 @@ typedef size_t          CUsize_t;
 #       include <cudaGL.h>
 #   endif
 
-#elif (!FW_CUDA && !FW_USE_GLEW)
+#elif (!FW_USE_GLEW)
 #   define GL_FUNC_AVAILABLE(NAME) (isAvailable_ ## NAME())
 #   include <GL/gl.h>
 #   if FW_USE_CUDA
@@ -234,6 +230,22 @@ typedef unsigned int    GLhandleARB;
 #define WGL_NUMBER_OVERLAYS_ARB             0x2008
 #define WGL_NUMBER_UNDERLAYS_ARB            0x2009
 
+#else
+typedef unsigned int GLenum;
+typedef unsigned char GLboolean;
+typedef unsigned int GLbitfield;
+typedef signed char GLbyte;
+typedef short GLshort;
+typedef int GLint;
+typedef int GLsizei;
+typedef unsigned char GLubyte;
+typedef unsigned short GLushort;
+typedef unsigned int GLuint;
+typedef float GLfloat;
+typedef float GLclampf;
+typedef double GLdouble;
+typedef double GLclampd;
+typedef void GLvoid;
 #endif
 
 //------------------------------------------------------------------------
@@ -367,25 +379,23 @@ typedef unsigned int    GLhandleARB;
 
 //------------------------------------------------------------------------
 
-#if (!FW_CUDA)
-#   define FW_DLL_IMPORT_RETV(RET, CALL, NAME, PARAMS, PASS)        bool isAvailable_ ## NAME(void);
-#   define FW_DLL_IMPORT_VOID(RET, CALL, NAME, PARAMS, PASS)        bool isAvailable_ ## NAME(void);
-#   define FW_DLL_DECLARE_RETV(RET, CALL, NAME, PARAMS, PASS)       bool isAvailable_ ## NAME(void); RET CALL NAME PARAMS;
-#   define FW_DLL_DECLARE_VOID(RET, CALL, NAME, PARAMS, PASS)       bool isAvailable_ ## NAME(void); RET CALL NAME PARAMS;
-#   if (FW_USE_CUDA)
-#       define FW_DLL_IMPORT_CUDA(RET, CALL, NAME, PARAMS, PASS)    bool isAvailable_ ## NAME(void);
-#       define FW_DLL_IMPORT_CUV2(RET, CALL, NAME, PARAMS, PASS)    bool isAvailable_ ## NAME(void);
-#   else
-#       define FW_DLL_IMPORT_CUDA(RET, CALL, NAME, PARAMS, PASS)    bool isAvailable_ ## NAME(void); RET CALL NAME PARAMS;
-#       define FW_DLL_IMPORT_CUV2(RET, CALL, NAME, PARAMS, PASS)    bool isAvailable_ ## NAME(void); RET CALL NAME PARAMS;
-#   endif
-#   include "base/DLLImports.inl"
-#   undef FW_DLL_IMPORT_RETV
-#   undef FW_DLL_IMPORT_VOID
-#   undef FW_DLL_DECLARE_RETV
-#   undef FW_DLL_DECLARE_VOID
-#   undef FW_DLL_IMPORT_CUDA
-#   undef FW_DLL_IMPORT_CUV2
+#define FW_DLL_IMPORT_RETV(RET, CALL, NAME, PARAMS, PASS)        bool isAvailable_ ## NAME(void);
+#define FW_DLL_IMPORT_VOID(RET, CALL, NAME, PARAMS, PASS)        bool isAvailable_ ## NAME(void);
+#define FW_DLL_DECLARE_RETV(RET, CALL, NAME, PARAMS, PASS)       bool isAvailable_ ## NAME(void); RET CALL NAME PARAMS;
+#define FW_DLL_DECLARE_VOID(RET, CALL, NAME, PARAMS, PASS)       bool isAvailable_ ## NAME(void); RET CALL NAME PARAMS;
+#if (FW_USE_CUDA)
+#    define FW_DLL_IMPORT_CUDA(RET, CALL, NAME, PARAMS, PASS)    bool isAvailable_ ## NAME(void);
+#    define FW_DLL_IMPORT_CUV2(RET, CALL, NAME, PARAMS, PASS)    bool isAvailable_ ## NAME(void);
+#else
+#    define FW_DLL_IMPORT_CUDA(RET, CALL, NAME, PARAMS, PASS)    bool isAvailable_ ## NAME(void); RET CALL NAME PARAMS;
+#    define FW_DLL_IMPORT_CUV2(RET, CALL, NAME, PARAMS, PASS)    bool isAvailable_ ## NAME(void); RET CALL NAME PARAMS;
 #endif
+#include "base/DLLImports.inl"
+#undef FW_DLL_IMPORT_RETV
+#undef FW_DLL_IMPORT_VOID
+#undef FW_DLL_DECLARE_RETV
+#undef FW_DLL_DECLARE_VOID
+#undef FW_DLL_IMPORT_CUDA
+#undef FW_DLL_IMPORT_CUV2
 
 //------------------------------------------------------------------------
